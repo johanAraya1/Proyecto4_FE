@@ -37,15 +37,3 @@ jobs:
 
       - name: Run tests
         run: npm test -- --passWithNoTests
-
-      - name: Create JS bundle for Android
-        run: |
-          # si tienes index.js como punto de entrada
-          mkdir -p android/app/src/main/assets
-          npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
-
-      - name: Upload JS bundle artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: js-bundle-android
-          path: android/app/src/main/assets/index.android.bundle
