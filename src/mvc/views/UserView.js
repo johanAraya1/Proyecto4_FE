@@ -16,8 +16,8 @@ export default function UserView() {
 
   useEffect(() => {
     fetch('https://jsonplaceholder.typicode.com/todos/1')
-      .then(res => res.json())
-      .then(data => setApiData(data));
+      .then((res) => res.json())
+      .then((data) => setApiData(data));
   }, []);
 
   const handleAdd = () => {
@@ -32,15 +32,27 @@ export default function UserView() {
   };
 
   return (
-    <div style={{padding:20}}>
+    <div style={{ padding: 20 }}>
       <h2>Usuarios</h2>
       <ul>
-        {users.map(u => <li key={u.id}>{u.name} ({u.email})</li>)}
+        {users.map((u) => (
+          <li key={u.id}>
+            {u.name} ({u.email})
+          </li>
+        ))}
       </ul>
-      <input placeholder="Nombre" value={name} onChange={e => setName(e.target.value)} />
-      <input placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
+      <input
+        placeholder='Nombre'
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+      <input
+        placeholder='Email'
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
       <button onClick={handleAdd}>Agregar usuario</button>
-      {error && <div style={{color:'red'}}>{error}</div>}
+      {error && <div style={{ color: 'red' }}>{error}</div>}
       <h3>Respuesta de endpoint real:</h3>
       <pre>{apiData ? JSON.stringify(apiData, null, 2) : 'Cargando...'}</pre>
     </div>

@@ -8,10 +8,10 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "lint": "eslint . --max-warnings 0",
-    "lint:fix": "eslint . --fix --max-warnings 0",
-    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md,yml}\"",
-    "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,md,yml}\"",
+    "lint": "eslint . --ext .js,.jsx --max-warnings 0",
+    "lint:fix": "eslint . --ext .js,.jsx --fix --max-warnings 0",
+    "format": "prettier --write \"./src/**/*.{js,jsx,json,css,scss,md}\"",
+    "format:fix": "prettier --write \"./src/**/*.{js,jsx,json,css,scss,md}\" && npm run lint:fix",
     "prepare": "husky install"
   },
   "dependencies": {
@@ -29,18 +29,18 @@
     "styled-components": "^6.1.19"
   },
   "devDependencies": {
-    "react-scripts": "^5.0.1",
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "@testing-library/jest-dom": "^6.1.4",
     "@testing-library/react": "^14.0.0",
     "@testing-library/user-event": "^14.5.1",
-    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "eslint": "^8.51.0",
-    "eslint-config-prettier": "^9.0.0",
-    "eslint-plugin-prettier": "^5.0.1",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-prettier": "^5.5.4",
     "eslint-plugin-react": "^7.33.2",
     "husky": "^8.0.3",
     "lint-staged": "^15.0.1",
-    "prettier": "^3.0.3"
+    "prettier": "^3.6.2",
+    "react-scripts": "^5.0.1"
   },
   "browserslist": {
     "production": [

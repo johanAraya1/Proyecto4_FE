@@ -30,7 +30,7 @@ const Logo = styled.div`
     height: 80px;
     width: auto;
     transition: transform 0.3s ease;
-    
+
     &:hover {
       transform: scale(1.05);
     }
@@ -38,7 +38,7 @@ const Logo = styled.div`
 `;
 
 const LogoutButton = styled.button`
-  background: #6B4423;
+  background: #6b4423;
   color: white;
   border: none;
   padding: 8px 16px;
@@ -66,7 +66,7 @@ const Avatar = styled.div`
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background-color: #6B4423;
+  background-color: #6b4423;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -77,15 +77,15 @@ const Avatar = styled.div`
 const UserInfo = styled.div`
   h3 {
     margin: 0;
-    color: #6B4423;
+    color: #6b4423;
     display: flex;
     align-items: center;
     gap: 8px;
   }
 
   .admin-badge {
-    background-color: #FFB800;
-    color: #6B4423;
+    background-color: #ffb800;
+    color: #6b4423;
     padding: 2px 8px;
     border-radius: 4px;
     font-size: 0.7em;
@@ -94,7 +94,7 @@ const UserInfo = styled.div`
 
   p {
     margin: 5px 0 0;
-    color: #FFB800;
+    color: #ffb800;
     font-weight: 500;
   }
 `;
@@ -113,7 +113,7 @@ const ActiveOrders = styled.div`
 `;
 
 const OrdersTitle = styled.h2`
-  color: #6B4423;
+  color: #6b4423;
   margin-bottom: 20px;
 `;
 
@@ -125,14 +125,14 @@ const RecipeCard = styled.div`
 `;
 
 const RecipeTitle = styled.h3`
-  color: #6B4423;
+  color: #6b4423;
   margin: 0 0 10px 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
 
   span {
-    color: #FFB800;
+    color: #ffb800;
     font-size: 0.9em;
   }
 `;
@@ -171,7 +171,7 @@ const RewardInfo = styled.p`
 `;
 
 const IngredientBoardButton = styled.button`
-  background: #6B4423;
+  background: #6b4423;
   color: white;
   border: none;
   padding: 15px;
@@ -193,7 +193,7 @@ const IngredientBoardButton = styled.button`
 
 const Dashboard = ({ user, onLogout }) => {
   console.log('Dashboard recibió usuario:', user);
-  
+
   if (!user) {
     console.error('No se recibieron datos de usuario');
     return <div>Cargando...</div>;
@@ -210,7 +210,10 @@ const Dashboard = ({ user, onLogout }) => {
       <Header>
         <HeaderLeft>
           <Logo>
-            <img src={process.env.PUBLIC_URL + '/assets/logo.png'} alt="CoffeeCenfo" />
+            <img
+              src={process.env.PUBLIC_URL + '/assets/logo.png'}
+              alt='CoffeeCenfo'
+            />
           </Logo>
           <Profile>
             <Avatar>
@@ -219,14 +222,16 @@ const Dashboard = ({ user, onLogout }) => {
             <UserInfo>
               <h3>
                 {user.name || 'Usuario'}
-                {user.role === 'admin' && <span className="admin-badge">Admin</span>}
+                {user.role === 'admin' && (
+                  <span className='admin-badge'>Admin</span>
+                )}
               </h3>
               <p>ELO: {user.elo || 0}</p>
             </UserInfo>
           </Profile>
         </HeaderLeft>
         <LogoutButton onClick={handleLogout}>
-          <span className="icon">🚪</span>
+          <span className='icon'>🚪</span>
           Cerrar Sesión
         </LogoutButton>
       </Header>
@@ -234,7 +239,7 @@ const Dashboard = ({ user, onLogout }) => {
       <MainContent>
         <ActiveOrders>
           <OrdersTitle>Active Orders</OrdersTitle>
-          
+
           <RecipeCard>
             <RecipeTitle>
               Caramel Macchiato
@@ -242,15 +247,15 @@ const Dashboard = ({ user, onLogout }) => {
             </RecipeTitle>
             <Ingredients>
               <Ingredient>
-                <img src="/assets/cafe.jpg" alt="Café" />
+                <img src='/assets/cafe.jpg' alt='Café' />
                 <p>Café</p>
               </Ingredient>
               <Ingredient>
-                <img src="/assets/leche.jpg" alt="Leche" />
+                <img src='/assets/leche.jpg' alt='Leche' />
                 <p>Leche</p>
               </Ingredient>
               <Ingredient>
-                <img src="/assets/agua.jpg" alt="Agua" />
+                <img src='/assets/agua.jpg' alt='Agua' />
                 <p>Agua</p>
               </Ingredient>
             </Ingredients>
@@ -264,11 +269,11 @@ const Dashboard = ({ user, onLogout }) => {
             </RecipeTitle>
             <Ingredients>
               <Ingredient>
-                <img src="/assets/cafe.jpg" alt="Café" />
+                <img src='/assets/cafe.jpg' alt='Café' />
                 <p>Café</p>
               </Ingredient>
               <Ingredient>
-                <img src="/assets/leche.jpg" alt="Leche" />
+                <img src='/assets/leche.jpg' alt='Leche' />
                 <p>Leche</p>
               </Ingredient>
             </Ingredients>
@@ -276,7 +281,7 @@ const Dashboard = ({ user, onLogout }) => {
           </RecipeCard>
 
           <IngredientBoardButton>
-            <span className="icon">📋</span>
+            <span className='icon'>📋</span>
             Go to Ingredient Board
           </IngredientBoardButton>
         </ActiveOrders>
@@ -290,9 +295,9 @@ Dashboard.propTypes = {
     name: PropTypes.string,
     email: PropTypes.string,
     role: PropTypes.string,
-    elo: PropTypes.number
+    elo: PropTypes.number,
   }).isRequired,
-  onLogout: PropTypes.func
+  onLogout: PropTypes.func,
 };
 
 export default Dashboard;

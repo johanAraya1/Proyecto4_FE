@@ -6,5 +6,9 @@
   "printWidth": 80,
   "bracketSpacing": true,
   "arrowParens": "always",
-  "endOfLine": "lf"
+  "endOfLine": "auto",
+  "jsxSingleQuote": true,
+  "jsxBracketSameLine": false,
+  "useTabs": false,
+  "htmlWhitespaceSensitivity": "css"
 }

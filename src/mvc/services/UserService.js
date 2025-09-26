@@ -8,7 +8,7 @@ const UserService = {
     if (!name || !email) throw new Error('Nombre y email requeridos');
     const user = new User(Date.now(), name, email);
     return UserRepository.add(user);
-  }
+  },
 };
 
 export default UserService;
