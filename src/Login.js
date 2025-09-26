@@ -36,7 +36,7 @@ const Logo = styled.div`
     height: auto;
     margin: 0 auto;
     transition: transform 0.3s ease;
-    
+
     &:hover {
       transform: scale(1.05);
     }
@@ -44,7 +44,7 @@ const Logo = styled.div`
 `;
 
 const Title = styled.h2`
-  color: #FFB800;
+  color: #ffb800;
   font-size: 1.5rem;
   text-align: center;
   margin-bottom: 2rem;
@@ -67,7 +67,7 @@ const Input = styled.input`
 `;
 
 const LoginButton = styled.button`
-  background-color: #6B4423;
+  background-color: #6b4423;
   color: white;
   padding: 0.8rem;
   border: none;
@@ -83,7 +83,7 @@ const LoginButton = styled.button`
 `;
 
 const ForgotPassword = styled.a`
-  color: #FFB800;
+  color: #ffb800;
   text-decoration: none;
   text-align: right;
   font-size: 0.9rem;
@@ -123,13 +123,14 @@ const Divider = styled.div`
   align-items: center;
   text-align: center;
   margin: 1rem 0;
-  
-  &::before, &::after {
+
+  &::before,
+  &::after {
     content: '';
     flex: 1;
     border-bottom: 1px solid #ccc;
   }
-  
+
   span {
     padding: 0 10px;
     color: #666;
@@ -139,9 +140,9 @@ const Divider = styled.div`
 const RegisterLink = styled.div`
   text-align: center;
   margin-top: 1rem;
-  
+
   a {
-    color: #FFB800;
+    color: #ffb800;
     text-decoration: none;
     margin-left: 0.5rem;
   }
@@ -178,10 +179,11 @@ export default function Login({ onLogin }) {
       } else {
         // Asegurémonos de que tenemos los datos del usuario estructurados correctamente
         const userData = {
-          name: result.name || result.user?.name || result.username || 'Usuario',
+          name:
+            result.name || result.user?.name || result.username || 'Usuario',
           email: result.email || result.user?.email || email,
           role: result.role || result.user?.role || 'user',
-          elo: result.elo || result.user?.elo || 0
+          elo: result.elo || result.user?.elo || 0,
         };
         console.log('Datos del usuario:', userData); // Para debugging
         onLogin(userData);
@@ -197,36 +199,41 @@ export default function Login({ onLogin }) {
       <GlobalStyle />
       <LoginContainer>
         <Logo>
-          <img src={process.env.PUBLIC_URL + '/assets/logo.png'} alt="CoffeeCenfo" />
+          <img
+            src={process.env.PUBLIC_URL + '/assets/logo.png'}
+            alt='CoffeeCenfo'
+          />
         </Logo>
         <Title>Conviértete en el mejor barista</Title>
         <StyledForm onSubmit={handleLogin}>
-          <Input 
-            type="email" 
-            placeholder="Email" 
-            value={email} 
-            onChange={e => setEmail(e.target.value)} 
-            required 
+          <Input
+            type='email'
+            placeholder='Email'
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
           />
-          <Input 
-            type="password" 
-            placeholder="Password" 
-            value={password} 
-            onChange={e => setPassword(e.target.value)} 
-            required 
+          <Input
+            type='password'
+            placeholder='Password'
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
           />
-          <ForgotPassword href="#">¿Olvidaste tu contraseña?</ForgotPassword>
-          <LoginButton type="submit" disabled={loading}>
+          <ForgotPassword href='#'>¿Olvidaste tu contraseña?</ForgotPassword>
+          <LoginButton type='submit' disabled={loading}>
             {loading ? 'Ingresando...' : 'Ingresar'}
           </LoginButton>
         </StyledForm>
-        <Divider><span>O ingresa con</span></Divider>
+        <Divider>
+          <span>O ingresa con</span>
+        </Divider>
         <GoogleButton>
-          <FontAwesomeIcon icon={faGoogle} className="google-icon" />
+          <FontAwesomeIcon icon={faGoogle} className='google-icon' />
           Google
         </GoogleButton>
         <RegisterLink>
-          ¿No tiene cuenta?<a href="#">Regístrate</a>
+          ¿No tiene cuenta?<a href='#'>Regístrate</a>
         </RegisterLink>
         {error && <ErrorMessage>{error}</ErrorMessage>}
       </LoginContainer>

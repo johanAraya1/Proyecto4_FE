@@ -16,7 +16,7 @@ const UserController = {
     } catch (e) {
       return { status: 400, error: e.message };
     }
-  }
+  },
 };
 
 export default UserController;

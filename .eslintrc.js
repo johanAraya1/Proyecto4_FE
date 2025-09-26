@@ -6,7 +6,7 @@ module.exports = {
     node: true,
   },
   globals: {
-    process: true
+    process: true,
   },
   extends: [
     'eslint:recommended',
@@ -24,6 +24,16 @@ module.exports = {
   rules: {
     'react/react-in-jsx-scope': 'off',
     'react/prop-types': 'off',
+    'no-unused-vars': 'warn',
+    'prettier/prettier': [
+      'error',
+      {
+        endOfLine: 'auto',
+        singleQuote: true,
+        semi: true,
+        trailingComma: 'all',
+      },
+    ],
   },
   settings: {
     react: {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Login from './Login';
 import Dashboard from './components/dashboard/Dashboard';
-import styled, { createGlobalStyle } from 'styled-components';
+import { createGlobalStyle } from 'styled-components';
 
 const GlobalStyle = createGlobalStyle`
   body {
@@ -14,7 +14,7 @@ const GlobalStyle = createGlobalStyle`
 
 export default function App() {
   const [user, setUser] = useState(null);
-  
+
   const handleLogout = () => {
     setUser(null);
   };
