@@ -1,0 +1,34 @@
+# Dependencias
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Variables de entorno
+.env
+.env.local
+
+# Builds Android/iOS
+*.apk
+*.aab
+android/app/build/
+ios/build/
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDEs
+.idea/
+.vscode/
+!.vscode/settings.json
+
+# Archivos temporales
+*.log
+*.tmp
