@@ -36,6 +36,7 @@ const TelemetryDashboard = () => {
     return `${minutes}m ${seconds % 60}s`;
   };
 
+  // eslint-disable-next-line no-unused-vars
   const getHealthColor = (status) => {
     switch (status) {
       case 'healthy': return '#4CAF50';
@@ -50,6 +51,7 @@ const TelemetryDashboard = () => {
     return health.status || 'unknown';
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleResetMetrics = () => {
     Alert.alert(
       'Resetear Métricas',

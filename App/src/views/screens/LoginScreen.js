@@ -14,7 +14,7 @@ import {
   Dimensions
 } from 'react-native';
 import { useAuth } from '../../controllers/AuthContext';
-import { theme } from '../../config/theme';
+import GoogleLogo from '../../components/GoogleLogo';
 
 /**
  * Pantalla de Login - Parte "Vista" de la arquitectura MVC
@@ -190,8 +190,10 @@ const LoginScreen = ({ navigation }) => {
 
           {/* Botón de Google */}
           <TouchableOpacity style={styles.googleButton}>
-            <Text style={styles.googleText}>G</Text>
-            <Text style={styles.googleButtonText}>Google</Text>
+            <View style={styles.googleIconContainer}>
+              <GoogleLogo size={18} />
+            </View>
+            <Text style={styles.googleButtonText}>Continuar con Google</Text>
           </TouchableOpacity>
 
           {/* Enlace de registro */}
@@ -317,27 +319,32 @@ const styles = StyleSheet.create({
     height: 50,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
+    borderColor: '#DADCE0',
+    borderRadius: 4,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  googleText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#4285F4',
+  googleIconContainer: {
+    width: 18,
+    height: 18,
     marginRight: 12,
-    width: 24,
-    height: 24,
-    textAlign: 'center',
-    lineHeight: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   googleButtonText: {
-    color: '#333',
+    color: '#3c4043',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: 'normal',
   },
   registerContainer: {
     flexDirection: 'row',

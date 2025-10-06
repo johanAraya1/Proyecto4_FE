@@ -9,18 +9,18 @@ import {
   ScrollView,
 } from 'react-native';
 import { useAuth } from '../../controllers/AuthContext';
-import { theme } from '../../config/theme';
 import TelemetryDashboard from '../../components/TelemetryDashboard';
+import GlobalRanking from '../../components/GlobalRanking';
 
 const DashboardScreen = ({ navigation }) => {
   // Usar el controlador para acceder a datos del usuario y función de logout
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState('ordenes');
+  const [activeTab, setActiveTab] = useState('ranking');
 
   // Efecto para asegurar que usuarios no-admin no accedan a tabs restringidos
   useEffect(() => {
     if (user?.role !== 'admin' && (activeTab === 'telemetria' || activeTab === 'admin')) {
-      setActiveTab('ordenes');
+      setActiveTab('ranking');
     }
   }, [user, user?.role, activeTab]);
 
@@ -73,6 +73,15 @@ const DashboardScreen = ({ navigation }) => {
         {/* Navegación por tabs */}
         <View style={styles.tabContainer}>
           <TouchableOpacity 
+            style={[styles.tab, activeTab === 'ranking' && styles.activeTab]}
+            onPress={() => setActiveTab('ranking')}
+          >
+            <Text style={[styles.tabText, activeTab === 'ranking' && styles.activeTabText]}>
+              🏆 Ranking Global
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
             style={[styles.tab, activeTab === 'ordenes' && styles.activeTab]}
             onPress={() => setActiveTab('ordenes')}
           >
@@ -106,10 +115,17 @@ const DashboardScreen = ({ navigation }) => {
           )}
         </View>
 
+        {/* Contenido del Ranking Global */}
+        {activeTab === 'ranking' && (
+          <View style={styles.content}>
+            <GlobalRanking />
+          </View>
+        )}
+
         {/* Contenido de Órdenes Activas */}
         {activeTab === 'ordenes' && (
           <View style={styles.content}>
-            <Text style={styles.sectionTitle}>Active Orders</Text>
+            <Text style={styles.sectionTitle}>Órdenes Activas</Text>
             
             {/* Orden 1: Caramel Macchiato */}
             <View style={styles.orderCard}>
@@ -130,7 +146,7 @@ const DashboardScreen = ({ navigation }) => {
                 </View>
               </View>
               
-              <Text style={styles.rewardText}>Reward: 50 pts</Text>
+              <Text style={styles.rewardText}>Recompensa: 50 pts</Text>
             </View>
             
             {/* Orden 2: Classic Latte */}
@@ -149,12 +165,12 @@ const DashboardScreen = ({ navigation }) => {
                 </View>
               </View>
               
-              <Text style={styles.rewardText}>Reward: 30 pts</Text>
+              <Text style={styles.rewardText}>Recompensa: 30 pts</Text>
             </View>
             
             {/* Botón Go to Ingredient Board */}
             <TouchableOpacity style={styles.ingredientBoardButton}>
-              <Text style={styles.ingredientBoardText}>📋 Go to Ingredient Board</Text>
+              <Text style={styles.ingredientBoardText}>📋 Ir al Tablero de Ingredientes</Text>
             </TouchableOpacity>
           </View>
         )}

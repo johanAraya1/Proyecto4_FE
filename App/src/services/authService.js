@@ -105,11 +105,11 @@ class AuthService {
       // await this.apiClient.post('/auth/logout');
       
       // Por ahora solo limpiamos datos locales
-      return true;
     } catch (error) {
       console.warn('Error al cerrar sesión:', error.message);
-      return true; // Permitir logout local aunque falle el servidor
+      // Permitir logout local aunque falle el servidor
     }
+    return true;
   }
 
   /**
