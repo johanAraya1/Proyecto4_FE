@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,17 +7,36 @@ import {
   SafeAreaView,
   Image,
   ScrollView,
+  Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../controllers/AuthContext';
+import { useRoom } from '../../hooks/useRoom';
+import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import TelemetryDashboard from '../../components/TelemetryDashboard';
 import GlobalRanking from '../../components/GlobalRanking';
 
+/**
+ * Pantalla principal del dashboard - Hub central de la aplicación
+ * Muestra diferentes tabs según el rol del usuario y feature flags activos
+ */
 const DashboardScreen = ({ navigation }) => {
-  // Usar el controlador para acceder a datos del usuario y función de logout
   const { user, logout } = useAuth();
+  const { createRoom, loading: roomLoading, error: roomError } = useRoom();
+  const { isFeatureEnabled, featureFlags, loading: featureFlagsLoading, refreshFeatureFlags } = useFeatureFlags();
   const [activeTab, setActiveTab] = useState('ranking');
 
-  // Efecto para asegurar que usuarios no-admin no accedan a tabs restringidos
+  // Refresca feature flags cada vez que la pantalla recibe el foco
+  useFocusEffect(
+    useCallback(() => {
+      refreshFeatureFlags();
+    }, [refreshFeatureFlags])
+  );
+
+  // Determina si el botón Deck debe mostrarse según el feature flag
+  const isDeckFeatureEnabled = !featureFlagsLoading && featureFlags.length > 0 && isFeatureEnabled('Deck');
+
+  // Restringe acceso a tabs de admin para usuarios no-administradores
   useEffect(() => {
     if (user?.role !== 'admin' && (activeTab === 'telemetria' || activeTab === 'admin')) {
       setActiveTab('ranking');
@@ -25,7 +44,7 @@ const DashboardScreen = ({ navigation }) => {
   }, [user, user?.role, activeTab]);
 
   /**
-   * Maneja el proceso de logout
+   * Cierra la sesión del usuario actual
    */
   const handleLogout = async () => {
     try {
@@ -36,6 +55,57 @@ const DashboardScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
+    }
+  };
+
+  /**
+   * Navega a la pantalla para unirse a una sala
+   */
+  const handleJoinRoom = () => {
+    navigation.navigate('JoinRoom');
+  };
+
+  /**
+   * Navega a la pantalla de salas activas
+   */
+  const handleViewActiveRooms = () => {
+    navigation.navigate('ActiveRooms');
+  };
+
+  /**
+   * Navega a la pantalla de administración de feature flags
+   */
+  const handleFeatureFlags = () => {
+    navigation.navigate('FeatureFlags');
+  };
+
+  /**
+   * Muestra modal de funcionalidad próximamente disponible
+   */
+  const handleViewDeck = () => {
+    Alert.alert('Visualizar Deck', 'Funcionalidad próximamente disponible');
+  };
+
+  /**
+   * Crea una nueva sala de juego para el usuario actual
+   */
+  const handleCreateRoom = async () => {
+    try {
+      if (!user?.id) {
+        Alert.alert('Error', 'No se pudo obtener la información del usuario');
+        return;
+      }
+
+      const room = await createRoom(user.id);
+      
+      if (room) {
+        navigation.navigate('RoomCreated', { room });
+      } else {
+        Alert.alert('Error', roomError || 'No se pudo crear la sala');
+      }
+    } catch (error) {
+      console.error('💥 Error al crear sala:', error);
+      Alert.alert('Error', `Hubo un problema al crear la sala: ${error.message}`);
     }
   };
 
@@ -118,6 +188,42 @@ const DashboardScreen = ({ navigation }) => {
         {/* Contenido del Ranking Global */}
         {activeTab === 'ranking' && (
           <View style={styles.content}>
+            {/* Botones de salas */}
+            <View style={styles.roomButtonsContainer}>
+              <TouchableOpacity 
+                style={[styles.roomButton, styles.createRoomButton]} 
+                onPress={handleCreateRoom}
+                disabled={roomLoading}
+              >
+                <Text style={styles.createRoomText}>
+                  {roomLoading ? '🔄 Creando...' : '🎮 Crear Sala'}
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.roomButton, styles.joinRoomButton]} 
+                onPress={handleJoinRoom}
+              >
+                <Text style={styles.joinRoomText}>🤝 Unirme a Sala</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.roomButton, styles.viewRoomsButton]} 
+                onPress={handleViewActiveRooms}
+              >
+                <Text style={styles.viewRoomsText}>📋 Ver Salas Activas</Text>
+              </TouchableOpacity>
+              
+              {isDeckFeatureEnabled && (
+                <TouchableOpacity 
+                  style={[styles.roomButton, styles.viewDeckButton]} 
+                  onPress={handleViewDeck}
+                >
+                  <Text style={styles.viewDeckText}>🃏 Visualizar Deck</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            
             <GlobalRanking />
           </View>
         )}
@@ -182,9 +288,55 @@ const DashboardScreen = ({ navigation }) => {
         
         {activeTab === 'admin' && user?.role === 'admin' && (
           <View style={styles.content}>
-            <Text style={styles.sectionTitle}>Administración</Text>
-            <View style={styles.placeholderContent}>
-              <Text style={styles.placeholderText}>Panel de administración en desarrollo</Text>
+            <Text style={styles.sectionTitle}>⚙️ Administración</Text>
+            
+            {/* Botones de administración */}
+            <View style={styles.adminButtonsContainer}>
+              <TouchableOpacity 
+                style={[styles.adminButton, styles.featureFlagsButton]} 
+                onPress={handleFeatureFlags}
+              >
+                <View style={styles.adminButtonContent}>
+                  <Text style={styles.adminButtonIcon}>🚩</Text>
+                  <View style={styles.adminButtonText}>
+                    <Text style={styles.adminButtonTitle}>Feature Flags</Text>
+                    <Text style={styles.adminButtonSubtitle}>Gestiona las características del sistema</Text>
+                  </View>
+                  <Text style={styles.adminButtonArrow}>▶</Text>
+                </View>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.adminButton, styles.usersButton]}
+                onPress={() => {
+                  Alert.alert('Próximamente', 'La gestión de usuarios estará disponible pronto');
+                }}
+              >
+                <View style={styles.adminButtonContent}>
+                  <Text style={styles.adminButtonIcon}>👥</Text>
+                  <View style={styles.adminButtonText}>
+                    <Text style={styles.adminButtonTitle}>Gestión de Usuarios</Text>
+                    <Text style={styles.adminButtonSubtitle}>Administra cuentas y permisos</Text>
+                  </View>
+                  <Text style={styles.adminButtonArrow}>▶</Text>
+                </View>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.adminButton, styles.settingsButton]}
+                onPress={() => {
+                  Alert.alert('Próximamente', 'La configuración del sistema estará disponible pronto');
+                }}
+              >
+                <View style={styles.adminButtonContent}>
+                  <Text style={styles.adminButtonIcon}>⚙️</Text>
+                  <View style={styles.adminButtonText}>
+                    <Text style={styles.adminButtonTitle}>Configuración</Text>
+                    <Text style={styles.adminButtonSubtitle}>Ajustes generales del sistema</Text>
+                  </View>
+                  <Text style={styles.adminButtonArrow}>▶</Text>
+                </View>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -409,6 +561,114 @@ const styles = StyleSheet.create({
     color: '#888',
     fontStyle: 'italic',
     textAlign: 'center',
+  },
+  createRoomButton: {
+    backgroundColor: '#6F4E37', // PRINCIPAL
+  },
+  createRoomText: {
+    color: '#F5F5F5',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  roomButtonsContainer: {
+    marginBottom: 20,
+  },
+  roomButton: {
+    width: '100%',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  joinRoomButton: {
+    backgroundColor: '#28A745', // Verde
+  },
+  joinRoomText: {
+    color: '#F5F5F5',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  viewRoomsButton: {
+    backgroundColor: '#FFD166', // SECUNDARIO
+  },
+  viewRoomsText: {
+    color: '#6F4E37', // PRINCIPAL
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  viewDeckButton: {
+    backgroundColor: '#17A2B8', // Azul para el deck
+  },
+  viewDeckText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  
+  // Estilos para los botones de administración
+  adminButtonsContainer: {
+    gap: 12,
+  },
+  adminButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderLeftWidth: 4,
+  },
+  featureFlagsButton: {
+    borderLeftColor: '#007BFF', // Azul para feature flags
+  },
+  usersButton: {
+    borderLeftColor: '#28A745', // Verde para usuarios
+  },
+  settingsButton: {
+    borderLeftColor: '#6C757D', // Gris para configuración
+  },
+  adminButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  adminButtonIcon: {
+    fontSize: 24,
+    marginRight: 16,
+  },
+  adminButtonText: {
+    flex: 1,
+  },
+  adminButtonTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  adminButtonSubtitle: {
+    fontSize: 12,
+    color: '#666',
+  },
+  adminButtonArrow: {
+    fontSize: 16,
+    color: '#CCC',
   },
 });
 
