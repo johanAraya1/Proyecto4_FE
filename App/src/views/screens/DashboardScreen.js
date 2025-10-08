@@ -160,18 +160,6 @@ const DashboardScreen = ({ navigation }) => {
             </Text>
           </TouchableOpacity>
           
-          {/* Solo mostrar Telemetría si el usuario es admin */}
-          {user?.role === 'admin' && (
-            <TouchableOpacity 
-              style={[styles.tab, activeTab === 'telemetria' && styles.activeTab]}
-              onPress={() => setActiveTab('telemetria')}
-            >
-              <Text style={[styles.tabText, activeTab === 'telemetria' && styles.activeTabText]}>
-                📄 Telemetría
-              </Text>
-            </TouchableOpacity>
-          )}
-          
           {/* Solo mostrar Administración si el usuario es admin */}
           {user?.role === 'admin' && (
             <TouchableOpacity 
@@ -282,10 +270,6 @@ const DashboardScreen = ({ navigation }) => {
         )}
         
         {/* Contenido placeholder para otras tabs */}
-        {activeTab === 'telemetria' && user?.role === 'admin' && (
-          <TelemetryDashboard />
-        )}
-        
         {activeTab === 'admin' && user?.role === 'admin' && (
           <View style={styles.content}>
             <Text style={styles.sectionTitle}>⚙️ Administración</Text>
@@ -325,7 +309,7 @@ const DashboardScreen = ({ navigation }) => {
               <TouchableOpacity 
                 style={[styles.adminButton, styles.settingsButton]}
                 onPress={() => {
-                  Alert.alert('Próximamente', 'La configuración del sistema estará disponible pronto');
+                  Alert.alert('Próximamente', 'La configuración estará disponible pronto');
                 }}
               >
                 <View style={styles.adminButtonContent}>
@@ -337,8 +321,27 @@ const DashboardScreen = ({ navigation }) => {
                   <Text style={styles.adminButtonArrow}>▶</Text>
                 </View>
               </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.adminButton, styles.telemetryButton]}
+                onPress={() => setActiveTab('telemetria')}
+              >
+                <View style={styles.adminButtonContent}>
+                  <Text style={styles.adminButtonIcon}>📊</Text>
+                  <View style={styles.adminButtonText}>
+                    <Text style={styles.adminButtonTitle}>Telemetría</Text>
+                    <Text style={styles.adminButtonSubtitle}>Ajustes generales del sistema</Text>
+                  </View>
+                  <Text style={styles.adminButtonArrow}>▶</Text>
+                </View>
+              </TouchableOpacity>
             </View>
           </View>
+        )}
+        
+        {/* Contenido de Telemetría */}
+        {activeTab === 'telemetria' && user?.role === 'admin' && (
+          <TelemetryDashboard />
         )}
       </ScrollView>
     </SafeAreaView>
@@ -645,6 +648,9 @@ const styles = StyleSheet.create({
   settingsButton: {
     borderLeftColor: '#6C757D', // Gris para configuración
   },
+  telemetryButton: {
+    borderLeftColor: '#17A2B8', // Azul cyan para telemetría
+  },
   adminButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -669,6 +675,23 @@ const styles = StyleSheet.create({
   adminButtonArrow: {
     fontSize: 16,
     color: '#CCC',
+  },
+  
+  // Estilos para la nueva organización de administración
+  adminSection: {
+    marginBottom: 20,
+  },
+  subsectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#6F4E37',
+    marginBottom: 16,
+    textAlign: 'left',
+  },
+  sectionSeparator: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: 24,
   },
 });
 

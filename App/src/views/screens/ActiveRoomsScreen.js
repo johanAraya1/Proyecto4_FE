@@ -51,18 +51,6 @@ const ActiveRoomsScreen = ({ navigation }) => {
   };
 
   /**
-   * Navega a los detalles de una sala
-   */
-  const goToRoomDetails = (room) => {
-    // TODO: Implementar navegación a detalles de sala
-    Alert.alert(
-      'Detalles de Sala',
-      `Código: ${room.code}\nEstado: ${room.getStatusInSpanish()}\nJugadores: ${room.getPlayerCount()}/2`,
-      [{ text: 'OK' }]
-    );
-  };
-
-  /**
    * Copia el código de la sala al portapapeles
    */
   const copyRoomCode = (code) => {
@@ -73,6 +61,27 @@ const ActiveRoomsScreen = ({ navigation }) => {
     } else {
       Alert.alert('Código de Sala', code);
     }
+  };
+
+  /**
+   * Inicia el juego en una sala
+   */
+  const playInRoom = (room) => {
+    Alert.alert(
+      'Entrar al Juego',
+      `¿Deseas entrar a la sala ${room.code}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Jugar', 
+          style: 'default',
+          onPress: () => {
+            // TODO: Implementar navegación al juego
+            Alert.alert('¡A Jugar!', `Entrando a la sala ${room.code}...`);
+          }
+        }
+      ]
+    );
   };
 
   /**
@@ -109,19 +118,21 @@ const ActiveRoomsScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.roomActions}>
-        <TouchableOpacity 
-          style={styles.copyButton} 
-          onPress={() => copyRoomCode(room.code)}
-        >
-          <Text style={styles.copyButtonText}>📋 Copiar</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.detailsButton} 
-          onPress={() => goToRoomDetails(room)}
-        >
-          <Text style={styles.detailsButtonText}>👁️ Ver</Text>
-        </TouchableOpacity>
+        {room.isPlaying() ? (
+          <TouchableOpacity 
+            style={styles.playButton} 
+            onPress={() => playInRoom(room)}
+          >
+            <Text style={styles.playButtonText}>🎮 Jugar</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={styles.copyButton} 
+            onPress={() => copyRoomCode(room.code)}
+          >
+            <Text style={styles.copyButtonText}>� Copiar</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -181,9 +192,7 @@ const ActiveRoomsScreen = ({ navigation }) => {
           resizeMode="contain"
         />
         
-        <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
-          <Text style={styles.refreshButtonText}>🔄</Text>
-        </TouchableOpacity>
+        <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.titleContainer}>
@@ -253,6 +262,9 @@ const styles = StyleSheet.create({
   logo: {
     width: 40,
     height: 40,
+  },
+  headerSpacer: {
+    width: 44, // Mismo ancho que el botón de refrescar para mantener centrado el logo
   },
   refreshButton: {
     paddingHorizontal: 12,
@@ -358,7 +370,7 @@ const styles = StyleSheet.create({
   },
   roomActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
   },
   copyButton: {
     backgroundColor: '#FFD166', // SECUNDARIO
@@ -366,7 +378,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 6,
     flex: 1,
-    marginRight: 8,
     alignItems: 'center',
   },
   copyButtonText: {
@@ -374,17 +385,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  detailsButton: {
-    backgroundColor: '#6F4E37', // PRINCIPAL
+  playButton: {
+    backgroundColor: '#28A745', // Verde para jugar
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
     flex: 1,
-    marginLeft: 8,
     alignItems: 'center',
   },
-  detailsButtonText: {
-    color: '#F5F5F5',
+  playButtonText: {
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
   },
