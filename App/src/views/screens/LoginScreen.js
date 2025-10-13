@@ -197,9 +197,9 @@ const LoginScreen = ({ navigation }) => {
           {/* Enlace de registro */}
           <View style={styles.registerContainer}>
             <Text style={styles.registerText}>¿No tiene cuenta? </Text>
-            <TouchableOpacity>
-              <Text style={styles.registerLink}>Regístrate</Text>
-            </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+                <Text style={styles.registerLink}>Regístrate</Text>
+              </TouchableOpacity>
           </View>
         </View>
       </ScrollView>

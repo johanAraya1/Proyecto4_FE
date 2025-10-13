@@ -146,6 +146,47 @@ export const useAuthController = () => {
     }
   };
 
+  /**
+   * Registra un nuevo usuario
+   * @param {string} name - Nombre del usuario
+   * @param {string} email - Email del usuario
+   * @param {string} password - Contraseña del usuario
+   * @returns {Promise<boolean>} - Verdadero si el registro fue exitoso
+   */
+  const register = async (name, email, password) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Validaciones simples
+      if (!name || !name.trim()) {
+        throw new Error('El nombre es requerido');
+      }
+      const tempUser = new User(email, password, null, name);
+      if (!tempUser.isValid()) {
+        throw new Error('Datos inválidos para el registro');
+      }
+
+      // Llamar al servicio de registro
+      const response = await authService.register(tempUser);
+
+      if (response.success) {
+        // No hacer auto-login ni cambiar el estado global - solo retornar resultado
+        return { success: true, user: response.user, token: response.token || null };
+      } else {
+        // Guardar el mensaje pero devolverlo también para uso inmediato en la UI
+        setError(response.message || 'Error en el registro');
+        return { success: false, message: response.message || 'Error en el registro' };
+      }
+    } catch (err) {
+      console.log('❌ Error en register:', err.message);
+      setError(err.message);
+      return { success: false, message: err.message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Retornar API pública del controlador
   return {
     // Estados
@@ -157,6 +198,7 @@ export const useAuthController = () => {
     // Acciones
     login,
     logout,
+    register,
     clearError,
     validateFields,
     restoreSession

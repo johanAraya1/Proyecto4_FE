@@ -2,6 +2,7 @@ import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from '../views/screens/LoginScreen';
 import DashboardScreen from '../views/screens/DashboardScreen';
+import RegisterScreen from '../views/screens/RegisterScreen';
 
 // Crear instancia del stack navigator
 const Stack = createStackNavigator();
@@ -32,6 +33,14 @@ const AppNavigator = () => {
         options={{
           title: 'Iniciar Sesión',
           headerShown: false, // Ocultar header en login para diseño más limpio
+        }}
+      />
+      {/* Pantalla de Registro */}
+      <Stack.Screen
+        name="Register"
+        component={RegisterScreen}
+        options={{
+          title: 'Registro',
         }}
       />
       

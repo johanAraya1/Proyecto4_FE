@@ -132,6 +132,48 @@ class AuthService {
       return false;
     }
   }
+
+  /**
+   * Registra un nuevo usuario en el backend
+   * @param {User} user - Instancia del modelo User con name/email/password
+   * @returns {Promise<Object>} - { success, user, token, message }
+   */
+  async register(user) {
+    try {
+      // Validar datos localmente
+      if (!user || !user.email || !user.password || !user.name) {
+        throw new Error('Datos incompletos para el registro');
+      }
+
+      const payload = {
+        name: user.name,
+        email: user.email,
+        password: user.password
+      };
+
+      const response = await this.apiClient.post('/auth/register', payload);
+
+      if (response.status === 201 && response.data) {
+        const userData = response.data;
+        return {
+          success: true,
+          user: User.fromApiResponse(userData),
+          token: userData.token || null
+        };
+      }
+
+      return { success: false, message: response.data?.message || 'Error en registro' };
+    } catch (error) {
+      if (error.response) {
+        const message = error.response.data?.message || 'Error del servidor';
+        return { success: false, message };
+      } else if (error.request) {
+        return { success: false, message: 'Error de conexión. Verifica tu red.' };
+      } else {
+        return { success: false, message: error.message || 'Error desconocido' };
+      }
+    }
+  }
 }
 
 // Exportar instancia singleton del servicio
