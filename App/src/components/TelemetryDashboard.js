@@ -15,7 +15,8 @@ import {
 import { useTelemetry } from '../hooks/useTelemetry';
 
 const TelemetryDashboard = () => {
-  const { metrics, health, loading, error, refresh, resetMetrics } = useTelemetry();
+  const { metrics, health, loading, error, refresh, resetMetrics } =
+    useTelemetry();
 
   // Cargar datos iniciales al montar el componente
   useEffect(() => {
@@ -31,7 +32,7 @@ const TelemetryDashboard = () => {
     const seconds = Math.floor(uptime / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
-    
+
     if (hours > 0) return `${hours}h ${minutes % 60}m`;
     return `${minutes}m ${seconds % 60}s`;
   };
@@ -39,10 +40,14 @@ const TelemetryDashboard = () => {
   // eslint-disable-next-line no-unused-vars
   const getHealthColor = (status) => {
     switch (status) {
-      case 'healthy': return '#4CAF50';
-      case 'warning': return '#FFD166';
-      case 'critical': return '#F44336';
-      default: return '#9E9E9E';
+      case 'healthy':
+        return '#4CAF50';
+      case 'warning':
+        return '#FFD166';
+      case 'critical':
+        return '#F44336';
+      default:
+        return '#9E9E9E';
     }
   };
 
@@ -58,11 +63,11 @@ const TelemetryDashboard = () => {
       '¿Estás seguro de que quieres resetear todas las métricas?',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Resetear', 
+        {
+          text: 'Resetear',
           style: 'destructive',
-          onPress: resetMetrics 
-        }
+          onPress: resetMetrics,
+        },
       ]
     );
   };
@@ -82,7 +87,7 @@ const TelemetryDashboard = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollContainer}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={handleRefresh} />
@@ -93,7 +98,9 @@ const TelemetryDashboard = () => {
         <View style={styles.metricsGrid}>
           <View style={styles.metricCard}>
             <Text style={styles.metricIcon}>📊</Text>
-            <Text style={styles.metricValue}>{metrics?.systemMetrics?.totalRequests || '14'}</Text>
+            <Text style={styles.metricValue}>
+              {metrics?.systemMetrics?.totalRequests || '14'}
+            </Text>
             <Text style={styles.metricLabel}>TOTAL REQUESTS</Text>
             <Text style={styles.metricSubtext}>+12% vs ayer</Text>
             <Text style={styles.metricStatus}>Excelente</Text>
@@ -102,7 +109,8 @@ const TelemetryDashboard = () => {
           <View style={styles.metricCard}>
             <Text style={styles.metricIcon}>⚡</Text>
             <Text style={styles.metricValue}>
-              {metrics?.systemMetrics?.averageResponseTime?.toFixed(0) || '168'}ms
+              {metrics?.systemMetrics?.averageResponseTime?.toFixed(0) || '168'}
+              ms
             </Text>
             <Text style={styles.metricLabel}>TIEMPO PROMEDIO</Text>
             <Text style={styles.metricSubtext}>Excelente</Text>
@@ -118,7 +126,9 @@ const TelemetryDashboard = () => {
 
           <View style={styles.metricCard}>
             <Text style={styles.metricIcon}>🚨</Text>
-            <Text style={styles.metricValue}>{metrics?.systemMetrics?.totalErrors || '1'}</Text>
+            <Text style={styles.metricValue}>
+              {metrics?.systemMetrics?.totalErrors || '1'}
+            </Text>
             <Text style={styles.metricLabel}>TOTAL ERRORES</Text>
             <Text style={styles.metricSubtext}>Atención requerida</Text>
           </View>
@@ -131,19 +141,31 @@ const TelemetryDashboard = () => {
             <View style={styles.eventItem}>
               <Text style={styles.eventIcon}>📊</Text>
               <Text style={styles.eventLabel}>Api Request</Text>
-              <Text style={styles.eventValue}>{metrics?.eventCounters?.find(e => e.eventType === 'api_request')?.count || '15'}</Text>
+              <Text style={styles.eventValue}>
+                {metrics?.eventCounters?.find(
+                  (e) => e.eventType === 'api_request'
+                )?.count || '15'}
+              </Text>
             </View>
-            
+
             <View style={styles.eventItem}>
               <Text style={styles.eventIcon}>📊</Text>
               <Text style={styles.eventLabel}>User Login_success</Text>
-              <Text style={styles.eventValue}>{metrics?.eventCounters?.find(e => e.eventType === 'user_login_success')?.count || '1'}</Text>
+              <Text style={styles.eventValue}>
+                {metrics?.eventCounters?.find(
+                  (e) => e.eventType === 'user_login_success'
+                )?.count || '1'}
+              </Text>
             </View>
-            
+
             <View style={styles.eventItem}>
               <Text style={styles.eventIcon}>📊</Text>
               <Text style={styles.eventLabel}>User Login_failed</Text>
-              <Text style={styles.eventValue}>{metrics?.eventCounters?.find(e => e.eventType === 'user_login_failed')?.count || '1'}</Text>
+              <Text style={styles.eventValue}>
+                {metrics?.eventCounters?.find(
+                  (e) => e.eventType === 'user_login_failed'
+                )?.count || '1'}
+              </Text>
             </View>
           </View>
         </View>
@@ -151,8 +173,8 @@ const TelemetryDashboard = () => {
         {/* Dashboard de Telemetría detallado */}
         <View style={styles.detailSection}>
           <View style={styles.detailHeader}>
-            <TouchableOpacity 
-              style={styles.resetButton} 
+            <TouchableOpacity
+              style={styles.resetButton}
               onPress={handleRefresh}
               disabled={loading}
             >
@@ -171,7 +193,9 @@ const TelemetryDashboard = () => {
             <View style={styles.systemStatusContent}>
               <View style={styles.statusRow}>
                 <Text style={styles.statusLabel}>Estado:</Text>
-                <Text style={[styles.statusValue, { color: '#FFD166' }]}>WARNING</Text>
+                <Text style={[styles.statusValue, { color: '#FFD166' }]}>
+                  WARNING
+                </Text>
               </View>
               <View style={styles.statusRow}>
                 <Text style={styles.statusLabel}>Uptime:</Text>
@@ -197,16 +221,22 @@ const TelemetryDashboard = () => {
             <View style={styles.generalMetricsContent}>
               <View style={styles.metricRow}>
                 <Text style={styles.metricRowLabel}>Total Requests:</Text>
-                <Text style={styles.metricRowValue}>{metrics?.systemMetrics?.totalRequests || '14'}</Text>
+                <Text style={styles.metricRowValue}>
+                  {metrics?.systemMetrics?.totalRequests || '14'}
+                </Text>
               </View>
               <View style={styles.metricRow}>
                 <Text style={styles.metricRowLabel}>Total Errores:</Text>
-                <Text style={styles.metricRowValue}>{metrics?.systemMetrics?.totalErrors || '1'}</Text>
+                <Text style={styles.metricRowValue}>
+                  {metrics?.systemMetrics?.totalErrors || '1'}
+                </Text>
               </View>
               <View style={styles.metricRow}>
                 <Text style={styles.metricRowLabel}>Tiempo Promedio:</Text>
                 <Text style={styles.metricRowValue}>
-                  {metrics?.systemMetrics?.averageResponseTime?.toFixed(2) || '168.29'}ms
+                  {metrics?.systemMetrics?.averageResponseTime?.toFixed(2) ||
+                    '168.29'}
+                  ms
                 </Text>
               </View>
               <View style={styles.metricRow}>
@@ -225,15 +255,27 @@ const TelemetryDashboard = () => {
             <View style={styles.systemEventsContent}>
               <View style={styles.eventRow}>
                 <Text style={styles.eventRowLabel}>Api Request:</Text>
-                <Text style={styles.eventRowValue}>{metrics?.eventCounters?.find(e => e.eventType === 'api_request')?.count || '15'}</Text>
+                <Text style={styles.eventRowValue}>
+                  {metrics?.eventCounters?.find(
+                    (e) => e.eventType === 'api_request'
+                  )?.count || '15'}
+                </Text>
               </View>
               <View style={styles.eventRow}>
                 <Text style={styles.eventRowLabel}>User Login_success:</Text>
-                <Text style={styles.eventRowValue}>{metrics?.eventCounters?.find(e => e.eventType === 'user_login_success')?.count || '1'}</Text>
+                <Text style={styles.eventRowValue}>
+                  {metrics?.eventCounters?.find(
+                    (e) => e.eventType === 'user_login_success'
+                  )?.count || '1'}
+                </Text>
               </View>
               <View style={styles.eventRow}>
                 <Text style={styles.eventRowLabel}>User Login_failed:</Text>
-                <Text style={styles.eventRowValue}>{metrics?.eventCounters?.find(e => e.eventType === 'user_login_failed')?.count || '1'}</Text>
+                <Text style={styles.eventRowValue}>
+                  {metrics?.eventCounters?.find(
+                    (e) => e.eventType === 'user_login_failed'
+                  )?.count || '1'}
+                </Text>
               </View>
             </View>
           </View>
@@ -242,15 +284,24 @@ const TelemetryDashboard = () => {
           <View style={styles.responseTimesCard}>
             <View style={styles.responseTimesHeader}>
               <Text style={styles.responseTimesIcon}>⏱️</Text>
-              <Text style={styles.responseTimesTitle}>Tiempos de Respuesta por Endpoint</Text>
+              <Text style={styles.responseTimesTitle}>
+                Tiempos de Respuesta por Endpoint
+              </Text>
             </View>
             {/* Tiempos de Respuesta por Endpoint */}
             <View style={styles.responseTimesContent}>
-              {metrics?.responseMetrics && metrics.responseMetrics.length > 0 ? (
+              {metrics?.responseMetrics &&
+              metrics.responseMetrics.length > 0 ? (
                 metrics.responseMetrics.map((metric, index) => (
                   <View key={index} style={styles.endpointRow}>
                     <View style={styles.endpointMethod}>
-                      <Text style={metric.method === 'POST' ? styles.methodPost : styles.methodGet}>
+                      <Text
+                        style={
+                          metric.method === 'POST'
+                            ? styles.methodPost
+                            : styles.methodGet
+                        }
+                      >
                         {metric.method}
                       </Text>
                     </View>
@@ -260,7 +311,8 @@ const TelemetryDashboard = () => {
                         Promedio: {metric.averageTime?.toFixed(2) || '0.00'}ms
                       </Text>
                       <Text style={styles.endpointMinMax}>
-                        Min/Max: {metric.minTime || 0}ms / {metric.maxTime || 0}ms
+                        Min/Max: {metric.minTime || 0}ms / {metric.maxTime || 0}
+                        ms
                       </Text>
                       <Text style={styles.endpointRequests}>
                         Requests: {metric.requestCount || 0}
@@ -275,8 +327,12 @@ const TelemetryDashboard = () => {
                   </View>
                   <Text style={styles.endpointPath}>/login</Text>
                   <View style={styles.endpointMetrics}>
-                    <Text style={styles.endpointPromedio}>Promedio: 1061.50ms</Text>
-                    <Text style={styles.endpointMinMax}>Min/Max: 422ms / 1700ms</Text>
+                    <Text style={styles.endpointPromedio}>
+                      Promedio: 1061.50ms
+                    </Text>
+                    <Text style={styles.endpointMinMax}>
+                      Min/Max: 422ms / 1700ms
+                    </Text>
                     <Text style={styles.endpointRequests}>Requests: 2</Text>
                   </View>
                 </View>
@@ -289,15 +345,23 @@ const TelemetryDashboard = () => {
             <View style={styles.httpErrorsCard}>
               <View style={styles.httpErrorsHeader}>
                 <Text style={styles.httpErrorsIcon}>🚨</Text>
-                <Text style={styles.httpErrorsTitle}>Errores por Código HTTP</Text>
+                <Text style={styles.httpErrorsTitle}>
+                  Errores por Código HTTP
+                </Text>
               </View>
               <View style={styles.httpErrorsContent}>
                 {metrics.errorMetrics.map((error, index) => (
                   <View key={index} style={styles.httpErrorRow}>
-                    <Text style={styles.httpErrorCode}>HTTP {error.statusCode}</Text>
-                    <Text style={styles.httpErrorCount}>{error.count} errores</Text>
+                    <Text style={styles.httpErrorCode}>
+                      HTTP {error.statusCode}
+                    </Text>
+                    <Text style={styles.httpErrorCount}>
+                      {error.count} errores
+                    </Text>
                     <Text style={styles.httpErrorTime}>
-                      {error.lastError ? `Último: ${error.lastError}` : 'Último: POST /login'}
+                      {error.lastError
+                        ? `Último: ${error.lastError}`
+                        : 'Último: POST /login'}
                     </Text>
                   </View>
                 ))}

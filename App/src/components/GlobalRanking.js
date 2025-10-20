@@ -13,7 +13,8 @@ import { useAuth } from '../controllers/AuthContext';
  * Componente que muestra el ranking global de jugadores
  */
 const GlobalRanking = () => {
-  const { ranking, loading, error, refreshing, refresh, clearError } = useRanking();
+  const { ranking, loading, error, refreshing, refresh, clearError } =
+    useRanking();
   const { user } = useAuth(); // Obtener el usuario logueado
 
   /**
@@ -21,23 +22,37 @@ const GlobalRanking = () => {
    */
   const renderPlayer = ({ item }) => {
     // Solo resaltar si el nombre del jugador coincide exactamente con el usuario logueado
-    const isCurrentUser = user && item.name.toLowerCase() === user.name.toLowerCase();
-    
+    const isCurrentUser =
+      user && item.name.toLowerCase() === user.name.toLowerCase();
+
     return (
-      <View key={item.rank} style={[styles.playerItem, isCurrentUser && styles.currentUserItem]}>
-        <View style={[styles.rankContainer, isCurrentUser && styles.currentUserRank]}>
-          <Text style={[styles.rankText, isCurrentUser && styles.currentUserRankText]}>
+      <View
+        key={item.rank}
+        style={[styles.playerItem, isCurrentUser && styles.currentUserItem]}
+      >
+        <View
+          style={[
+            styles.rankContainer,
+            isCurrentUser && styles.currentUserRank,
+          ]}
+        >
+          <Text
+            style={[
+              styles.rankText,
+              isCurrentUser && styles.currentUserRankText,
+            ]}
+          >
             {item.rank}
           </Text>
         </View>
-        
+
         <View style={styles.playerInfo}>
-          <Text style={[styles.playerName, isCurrentUser && styles.currentUserName]}>
+          <Text
+            style={[styles.playerName, isCurrentUser && styles.currentUserName]}
+          >
             {item.name}
           </Text>
-          <Text style={styles.playerElo}>
-            ELO: {item.elo.toLocaleString()}
-          </Text>
+          <Text style={styles.playerElo}>ELO: {item.elo.toLocaleString()}</Text>
         </View>
 
         {item.rank <= 3 && (
@@ -57,7 +72,7 @@ const GlobalRanking = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6F4E37" />
+        <ActivityIndicator size='large' color='#6F4E37' />
         <Text style={styles.loadingText}>Cargando ranking...</Text>
       </View>
     );
@@ -71,10 +86,13 @@ const GlobalRanking = () => {
       <View style={styles.errorContainer}>
         <Text style={styles.errorTitle}>❌ Error al cargar el ranking</Text>
         <Text style={styles.errorMessage}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => {
-          clearError();
-          refresh();
-        }}>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => {
+            clearError();
+            refresh();
+          }}
+        >
           <Text style={styles.retryButtonText}>🔄 Reintentar</Text>
         </TouchableOpacity>
       </View>

@@ -1,33 +1,5 @@
-import axios from 'axios';
 import { FeatureFlag } from '../models/FeatureFlag';
-import { Platform } from 'react-native';
-
-/**
- * Determina la URL base del servidor según la plataforma
- * @returns {string} URL base del API
- */
-const getBaseURL = () => {
-  if (Platform.OS === 'web') {
-    return 'http://localhost:3000';
-  } else if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:3000';
-  } else if (Platform.OS === 'ios') {
-    return 'http://localhost:3000';
-  } else {
-    return 'http://192.168.100.55:3000';
-  }
-};
-
-const BASE_URL = getBaseURL();
-
-// Cliente HTTP configurado para el API de feature flags
-const api = axios.create({
-  baseURL: BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+import { ApiClient } from './ApiClient';
 
 /**
  * Extrae datos de feature flag desde diferentes estructuras de respuesta
@@ -36,7 +8,7 @@ const api = axios.create({
  */
 const _extractFeatureFlagData = (data) => {
   if (!data) return null;
-  
+
   if (data.feature_flag) {
     return data.feature_flag;
   } else if (data.featureFlag) {
@@ -54,28 +26,31 @@ const _extractFeatureFlagData = (data) => {
  */
 class FeatureFlagService {
   /**
+   * Constructor del servicio de feature flags
+   * Configura el cliente API
+   */
+  constructor() {
+    this.apiClient = new ApiClient();
+  }
+  /**
    * Obtiene todos los feature flags del servidor
    * @returns {Promise<Object>} - Respuesta con array de feature flags
    */
   async getAllFeatureFlags() {
-    try {
-      const response = await api.get('/api/feature-flags');
-      
-      if (response.data && response.data.featureFlags) {
-        const featureFlags = response.data.featureFlags.map(flagData => {
-          const extractedData = _extractFeatureFlagData(flagData);
-          return FeatureFlag.fromApiResponse(extractedData);
-        });
-        
-        return {
-          success: true,
-          featureFlags: featureFlags
-        };
-      } else {
-        throw new Error('Respuesta inválida del servidor');
-      }
-    } catch (error) {
-      throw new Error(error.response?.data?.message || error.message || 'Error de red');
+    const response = await this.apiClient.get('/feature-flags');
+
+    if (response.data && response.data.featureFlags) {
+      const featureFlags = response.data.featureFlags.map((flagData) => {
+        const extractedData = _extractFeatureFlagData(flagData);
+        return FeatureFlag.fromApiResponse(extractedData);
+      });
+
+      return {
+        success: true,
+        featureFlags: featureFlags,
+      };
+    } else {
+      throw new Error('Respuesta inválida del servidor');
     }
   }
 
@@ -86,24 +61,26 @@ class FeatureFlagService {
    */
   async getFeatureFlagById(id) {
     try {
-      const response = await api.get(`/api/feature-flags/${id}`);
-      
+      const response = await this.apiClient.get(`/feature-flags/${id}`);
+
       if (response.data) {
         const extractedData = _extractFeatureFlagData(response.data);
-        
+
         if (!extractedData) {
           throw new Error('Feature flag no encontrado');
         }
-        
+
         return {
           success: true,
-          featureFlag: FeatureFlag.fromApiResponse(extractedData)
+          featureFlag: FeatureFlag.fromApiResponse(extractedData),
         };
       } else {
         throw new Error('Feature flag no encontrado');
       }
     } catch (error) {
-      throw new Error(error.response?.data?.message || error.message || 'Error de red');
+      throw new Error(
+        error.response?.data?.message || error.message || 'Error de red'
+      );
     }
   }
 
@@ -114,24 +91,26 @@ class FeatureFlagService {
    */
   async getFeatureFlagByName(name) {
     try {
-      const response = await api.get(`/api/feature-flags/name/${name}`);
-      
+      const response = await this.apiClient.get(`/feature-flags/name/${name}`);
+
       if (response.data) {
         const extractedData = _extractFeatureFlagData(response.data);
-        
+
         if (!extractedData) {
           throw new Error('Feature flag no encontrado');
         }
-        
+
         return {
           success: true,
-          featureFlag: FeatureFlag.fromApiResponse(extractedData)
+          featureFlag: FeatureFlag.fromApiResponse(extractedData),
         };
       } else {
         throw new Error('Feature flag no encontrado');
       }
     } catch (error) {
-      throw new Error(error.response?.data?.message || error.message || 'Error de red');
+      throw new Error(
+        error.response?.data?.message || error.message || 'Error de red'
+      );
     }
   }
 
@@ -146,11 +125,14 @@ class FeatureFlagService {
         throw new Error('Datos del feature flag requeridos');
       }
 
-      const response = await api.post('/api/feature-flags', featureFlagData);
+      const response = await this.apiClient.post(
+        '/feature-flags',
+        featureFlagData
+      );
 
       if (response.data) {
         const extractedData = _extractFeatureFlagData(response.data);
-        
+
         if (!extractedData) {
           throw new Error('Error al crear feature flag');
         }
@@ -158,13 +140,15 @@ class FeatureFlagService {
         return {
           success: true,
           featureFlag: FeatureFlag.fromApiResponse(extractedData),
-          message: 'Feature flag creado exitosamente'
+          message: 'Feature flag creado exitosamente',
         };
       } else {
         throw new Error('Error al crear feature flag');
       }
     } catch (error) {
-      throw new Error(error.response?.data?.message || error.message || 'Error de red');
+      throw new Error(
+        error.response?.data?.message || error.message || 'Error de red'
+      );
     }
   }
 
@@ -184,11 +168,14 @@ class FeatureFlagService {
         throw new Error('Datos de actualización requeridos');
       }
 
-      const response = await api.put(`/api/feature-flags/${id}`, updateData);
+      const response = await this.apiClient.put(
+        `/feature-flags/${id}`,
+        updateData
+      );
 
       if (response.data) {
         const extractedData = _extractFeatureFlagData(response.data);
-        
+
         if (!extractedData) {
           throw new Error('Error al actualizar feature flag');
         }
@@ -196,13 +183,15 @@ class FeatureFlagService {
         return {
           success: true,
           featureFlag: FeatureFlag.fromApiResponse(extractedData),
-          message: 'Feature flag actualizado exitosamente'
+          message: 'Feature flag actualizado exitosamente',
         };
       } else {
         throw new Error('Error al actualizar feature flag');
       }
     } catch (error) {
-      throw new Error(error.response?.data?.message || error.message || 'Error de red');
+      throw new Error(
+        error.response?.data?.message || error.message || 'Error de red'
+      );
     }
   }
 
@@ -217,28 +206,34 @@ class FeatureFlagService {
         throw new Error('ID del feature flag requerido');
       }
 
-      const response = await api.patch(`/api/feature-flags/${id}/toggle`);
+      const response = await this.apiClient.patch(
+        `/feature-flags/${id}/toggle`
+      );
 
       if (response.data) {
         const extractedData = _extractFeatureFlagData(response.data);
-        
+
         if (!extractedData) {
           throw new Error('Error al alternar feature flag');
         }
 
         const featureFlag = FeatureFlag.fromApiResponse(extractedData);
-        const newState = featureFlag.isEnabled() ? 'habilitado' : 'deshabilitado';
+        const newState = featureFlag.isEnabled()
+          ? 'habilitado'
+          : 'deshabilitado';
 
         return {
           success: true,
           featureFlag: featureFlag,
-          message: `Feature flag ${newState} exitosamente`
+          message: `Feature flag ${newState} exitosamente`,
         };
       } else {
         throw new Error('Error al alternar feature flag');
       }
     } catch (error) {
-      throw new Error(error.response?.data?.message || error.message || 'Error de red');
+      throw new Error(
+        error.response?.data?.message || error.message || 'Error de red'
+      );
     }
   }
 
@@ -253,18 +248,20 @@ class FeatureFlagService {
         throw new Error('ID del feature flag requerido');
       }
 
-      const response = await api.delete(`/api/feature-flags/${id}`);
+      const response = await this.apiClient.delete(`/feature-flags/${id}`);
 
       if (response.status === 204 || response.status === 200) {
         return {
           success: true,
-          message: 'Feature flag eliminado exitosamente'
+          message: 'Feature flag eliminado exitosamente',
         };
       } else {
         throw new Error('Error al eliminar feature flag');
       }
     } catch (error) {
-      throw new Error(error.response?.data?.message || error.message || 'Error de red');
+      throw new Error(
+        error.response?.data?.message || error.message || 'Error de red'
+      );
     }
   }
 }

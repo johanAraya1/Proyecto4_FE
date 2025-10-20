@@ -16,28 +16,20 @@ export const useTelemetry = () => {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log('🔄 Actualizando métricas de telemetría...');
-      console.log('🌐 URL base de telemetría:', telemetryAPI.baseUrl);
-      
+
       // Obtener todas las métricas en paralelo
       const [metricsData, healthData] = await Promise.all([
         telemetryAPI.getAllMetrics(),
-        telemetryAPI.getHealthStatus()
+        telemetryAPI.getHealthStatus(),
       ]);
-      
-      console.log('📊 Métricas obtenidas:', metricsData);
-      console.log('💚 Estado de salud obtenido:', healthData);
-      
+
       setMetrics(metricsData);
       setHealth(healthData);
-      
-      console.log('✅ Datos actualizados correctamente');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Error desconocido';
       setError(errorMessage);
-      console.error('Error fetching telemetry data:', err);
-      
+
       // Mostrar datos dummy si hay error de conexión
       if (errorMessage.includes('fetch') || errorMessage.includes('Network')) {
         setMetrics({
@@ -45,29 +37,29 @@ export const useTelemetry = () => {
             totalRequests: 14,
             totalErrors: 4, // 4 errores 401
             averageResponseTime: 168.29,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           },
           eventCounters: [
             { eventType: 'api_request', count: 15 },
             { eventType: 'user_login_success', count: 1 },
-            { eventType: 'user_login_failed', count: 4 } // 4 fallos de login
+            { eventType: 'user_login_failed', count: 4 }, // 4 fallos de login
           ],
           responseMetrics: [
             {
               endpoint: '/login',
               method: 'POST',
-              averageTime: 1061.50,
+              averageTime: 1061.5,
               minTime: 422,
               maxTime: 1700,
-              requestCount: 5 // 5 intentos de login
+              requestCount: 5, // 5 intentos de login
             },
             {
               endpoint: '/health',
               method: 'GET',
-              averageTime: 16.00,
+              averageTime: 16.0,
               minTime: 1,
               maxTime: 52,
-              requestCount: 6
+              requestCount: 6,
             },
             {
               endpoint: '/metrics',
@@ -75,22 +67,22 @@ export const useTelemetry = () => {
               averageTime: 22.83,
               minTime: 6,
               maxTime: 60,
-              requestCount: 6
-            }
+              requestCount: 6,
+            },
           ],
           errorMetrics: [
             {
               statusCode: 401,
               count: 4, // 4 errores 401
               lastError: 'Invalid credentials',
-              lastUpdated: new Date().toISOString()
-            }
-          ]
+              lastUpdated: new Date().toISOString(),
+            },
+          ],
         });
         setHealth({
           status: 'warning',
           uptime: 205000, // 3m 25s
-          errorRate: 28.57 // 4 errores de 14 requests = 28.57%
+          errorRate: 28.57, // 4 errores de 14 requests = 28.57%
         });
       }
     } finally {
@@ -108,14 +100,15 @@ export const useTelemetry = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       await telemetryAPI.resetMetrics();
-      
+
       // Actualizar datos después del reset
       await fetchMetrics();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al resetear métricas');
-      console.error('Error resetting metrics:', err);
+      setError(
+        err instanceof Error ? err.message : 'Error al resetear métricas'
+      );
     } finally {
       setLoading(false);
     }
@@ -127,6 +120,6 @@ export const useTelemetry = () => {
     loading,
     error,
     refresh,
-    resetMetrics
+    resetMetrics,
   };
 };

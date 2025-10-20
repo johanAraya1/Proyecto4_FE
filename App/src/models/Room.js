@@ -1,6 +1,6 @@
 /**
  * Modelo de entidad Room - representa una sala de juego en el sistema
- * 
+ *
  */
 export class Room {
   /**
@@ -45,10 +45,12 @@ export class Room {
    * @returns {boolean} - Verdadero si el código es válido
    */
   isValidCode() {
-    return this.code && 
-           typeof this.code === 'string' && 
-           this.code.length === 6 && 
-           /^[A-F0-9]{6}$/.test(this.code);
+    return (
+      this.code &&
+      typeof this.code === 'string' &&
+      this.code.length === 6 &&
+      /^[A-F0-9]{6}$/.test(this.code)
+    );
   }
 
   /**
@@ -142,7 +144,7 @@ export class Room {
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
       });
     } catch (error) {
       return 'Fecha no válida';
@@ -163,9 +165,9 @@ export class Room {
    */
   getStatusInSpanish() {
     const statusMap = {
-      'waiting': 'Esperando',
-      'playing': 'Jugando',
-      'finished': 'Terminado'
+      waiting: 'Esperando',
+      playing: 'Jugando',
+      finished: 'Terminado',
     };
     return statusMap[this.status] || 'Desconocido';
   }
@@ -175,11 +177,13 @@ export class Room {
    * @returns {boolean} - Verdadero si todos los campos son válidos
    */
   isValid() {
-    return this.id && 
-           this.isValidCode() && 
-           this.creatorId && 
-           this.isValidStatus() && 
-           this.createdAt;
+    return (
+      this.id &&
+      this.isValidCode() &&
+      this.creatorId &&
+      this.isValidStatus() &&
+      this.createdAt
+    );
   }
 
   /**
@@ -195,7 +199,7 @@ export class Room {
       status: this.status,
       created_at: this.createdAt,
       started_at: this.startedAt,
-      finished_at: this.finishedAt
+      finished_at: this.finishedAt,
     };
   }
 
@@ -205,12 +209,6 @@ export class Room {
    * @returns {Room} - Nueva instancia de Room
    */
   static fromApiResponse(apiResponse) {
-    console.log('🏭 Room.fromApiResponse recibió:', {
-      creator_id: apiResponse.creator_id,
-      creator_name: apiResponse.creator_name,
-      hasCreatorName: !!apiResponse.creator_name
-    });
-    
     const room = new Room(
       apiResponse.id,
       apiResponse.code,
@@ -223,8 +221,7 @@ export class Room {
       apiResponse.creator_name,
       apiResponse.opponent_name
     );
-    
-    console.log('🏭 Room creado con creatorName:', room.creatorName);
+
     return room;
   }
 

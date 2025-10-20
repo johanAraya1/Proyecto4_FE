@@ -41,7 +41,6 @@ export const useRoom = () => {
       const response = await roomService.createRoom(userId);
 
       if (response.success) {
-        console.log('✅ Sala creada:', response.room.code);
         setCurrentRoom(response.room);
         setSuccessMessage(response.message);
         return response.room;
@@ -49,7 +48,6 @@ export const useRoom = () => {
         throw new Error('Error al crear la sala');
       }
     } catch (err) {
-      console.error('💥 Error al crear sala:', err.message);
       setError(err.message);
       setCurrentRoom(null);
       return null;
@@ -61,24 +59,36 @@ export const useRoom = () => {
   /**
    * Busca una sala por su código
    * @param {string} roomCode - Código de la sala a buscar
-   * @returns {Promise<Object|null>} - Objeto con los datos de la sala encontrada o null si falla
+   * @param {number} userId - ID del usuario que busca la sala
+   * @returns {Promise<Object|null>} - Objeto con los datos de la sala y estado del usuario
    */
-  const getRoomByCode = useCallback(async (roomCode) => {
+  const getRoomByCode = useCallback(async (roomCode, userId) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Validar entrada
+      // Validar entradas
       if (!roomCode) {
         throw new Error('Código de sala es requerido');
       }
 
+      if (!userId) {
+        throw new Error('ID de usuario es requerido');
+      }
+
       // Llamar al servicio para buscar la sala
-      const response = await roomService.getRoomByCode(roomCode);
+      const response = await roomService.getRoomByCode(roomCode, userId);
 
       if (response.success) {
         setCurrentRoom(response.room);
-        return response.room;
+        // Retornar toda la información adicional
+        return {
+          room: response.room,
+          isUserInRoom: response.isUserInRoom,
+          isRoomFull: response.isRoomFull,
+          message: response.message,
+          userRole: response.userRole,
+        };
       } else {
         throw new Error('Sala no encontrada');
       }
@@ -145,14 +155,12 @@ export const useRoom = () => {
       const response = await roomService.getUserRooms(userId);
 
       if (response.success) {
-        console.log('✅ Salas del usuario obtenidas:', response.rooms.length);
         setUserRooms(response.rooms);
         return response.rooms;
       } else {
         throw new Error('Error al obtener las salas');
       }
     } catch (err) {
-      console.error('💥 Error al obtener salas del usuario:', err.message);
       setError(err.message);
       setUserRooms([]);
       return null;
@@ -169,7 +177,6 @@ export const useRoom = () => {
    */
   const joinRoomById = useCallback(async (roomId, userId) => {
     try {
-      console.log('🎯 useRoom.joinRoomById iniciado con:', { roomId, userId });
       setLoading(true);
       setError(null);
       setSuccessMessage(null);
@@ -180,26 +187,19 @@ export const useRoom = () => {
       }
 
       // Llamar al servicio para unirse a la sala
-      console.log('📞 Llamando a roomService.joinRoomById...');
       const response = await roomService.joinRoomById(roomId, userId);
-      console.log('📥 Respuesta del servicio:', response);
 
       if (response.success) {
-        console.log('✅ Unido a la sala exitosamente:', response.room.code);
         setCurrentRoom(response.room);
         setSuccessMessage(response.message);
         return response.room;
       } else {
-        console.log('❌ Respuesta no exitosa del servicio');
         throw new Error('Error al unirse a la sala');
       }
     } catch (err) {
-      console.error('💥 Error en useRoom.joinRoomById:', err.message);
-      console.error('💥 Stack trace:', err.stack);
       setError(err.message);
       return null;
     } finally {
-      console.log('🔄 useRoom.joinRoomById finalizando, setLoading(false)');
       setLoading(false);
     }
   }, []);
@@ -219,18 +219,24 @@ export const useRoom = () => {
    * @param {number} userId - ID del usuario a verificar
    * @returns {boolean} - Verdadero si es el creador
    */
-  const isCreator = useCallback((userId) => {
-    return currentRoom ? currentRoom.isCreator(userId) : false;
-  }, [currentRoom]);
+  const isCreator = useCallback(
+    (userId) => {
+      return currentRoom ? currentRoom.isCreator(userId) : false;
+    },
+    [currentRoom]
+  );
 
   /**
    * Verifica si el usuario actual es participante de la sala
    * @param {number} userId - ID del usuario a verificar
    * @returns {boolean} - Verdadero si es participante
    */
-  const isParticipant = useCallback((userId) => {
-    return currentRoom ? currentRoom.isParticipant(userId) : false;
-  }, [currentRoom]);
+  const isParticipant = useCallback(
+    (userId) => {
+      return currentRoom ? currentRoom.isParticipant(userId) : false;
+    },
+    [currentRoom]
+  );
 
   /**
    * Obtiene el estado de la sala en español
@@ -245,7 +251,9 @@ export const useRoom = () => {
    * @returns {boolean} - Verdadero si la sala puede aceptar jugadores
    */
   const canJoin = useCallback(() => {
-    return currentRoom ? !currentRoom.isFull() && currentRoom.isWaiting() : false;
+    return currentRoom
+      ? !currentRoom.isFull() && currentRoom.isWaiting()
+      : false;
   }, [currentRoom]);
 
   // Retornar el estado y las funciones del hook

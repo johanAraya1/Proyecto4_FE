@@ -8,15 +8,26 @@ import {
   Image,
   FlatList,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { useAuth } from '../../controllers/AuthContext';
 import { useRoom } from '../../hooks/useRoom';
+import { CustomModal, BackButton } from '../../components/common';
+import { useCustomModal } from '../../hooks/useCustomModal';
+import { copyToClipboard } from '../../utils/clipboard';
 
 const ActiveRoomsScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { getUserRooms, loading, error, userRooms } = useRoom();
   const [refreshing, setRefreshing] = useState(false);
+
+  // Hook para modales personalizados
+  const {
+    modalVisible,
+    modalData,
+    showSuccessModal,
+    showErrorModal,
+    hideModal,
+  } = useCustomModal();
 
   /**
    * Carga las salas del usuario al montar el componente
@@ -53,13 +64,12 @@ const ActiveRoomsScreen = ({ navigation }) => {
   /**
    * Copia el código de la sala al portapapeles
    */
-  const copyRoomCode = (code) => {
-    // En React Native Web no tenemos Clipboard, usamos navigator.clipboard
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(code);
-      Alert.alert('¡Copiado!', 'El código de la sala ha sido copiado');
+  const copyRoomCodeToClipboard = async (code) => {
+    const result = await copyToClipboard(code);
+    if (result.success) {
+      showSuccessModal('¡Copiado!', 'El código de la sala ha sido copiado');
     } else {
-      Alert.alert('Código de Sala', code);
+      showErrorModal('Error', result.error || 'No se pudo copiar el código');
     }
   };
 
@@ -67,21 +77,18 @@ const ActiveRoomsScreen = ({ navigation }) => {
    * Inicia el juego en una sala
    */
   const playInRoom = (room) => {
-    Alert.alert(
-      'Entrar al Juego',
-      `¿Deseas entrar a la sala ${room.code}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Jugar', 
-          style: 'default',
-          onPress: () => {
-            // TODO: Implementar navegación al juego
-            Alert.alert('¡A Jugar!', `Entrando a la sala ${room.code}...`);
-          }
-        }
-      ]
-    );
+    // Navegar directamente a la pantalla de juego
+    try {
+      navigation.navigate('Game', {
+        roomId: room.id,
+        roomCode: room.code,
+      });
+    } catch (error) {
+      showErrorModal(
+        'Error',
+        'No se pudo navegar a la pantalla de juego: ' + error.message
+      );
+    }
   };
 
   /**
@@ -95,7 +102,12 @@ const ActiveRoomsScreen = ({ navigation }) => {
           <Text style={styles.roomCode}>{room.code}</Text>
         </View>
         <View style={styles.statusContainer}>
-          <View style={[styles.statusDot, { backgroundColor: getStatusColor(room.status) }]} />
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: getStatusColor(room.status) },
+            ]}
+          />
           <Text style={styles.statusText}>{room.getStatusInSpanish()}</Text>
         </View>
       </View>
@@ -119,18 +131,18 @@ const ActiveRoomsScreen = ({ navigation }) => {
 
       <View style={styles.roomActions}>
         {room.isPlaying() ? (
-          <TouchableOpacity 
-            style={styles.playButton} 
+          <TouchableOpacity
+            style={styles.playButton}
             onPress={() => playInRoom(room)}
           >
             <Text style={styles.playButtonText}>🎮 Jugar</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity 
-            style={styles.copyButton} 
-            onPress={() => copyRoomCode(room.code)}
+          <TouchableOpacity
+            style={styles.copyButton}
+            onPress={() => copyRoomCodeToClipboard(room.code)}
           >
-            <Text style={styles.copyButtonText}>� Copiar</Text>
+            <Text style={styles.copyButtonText}>📋 Copiar</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -142,10 +154,14 @@ const ActiveRoomsScreen = ({ navigation }) => {
    */
   const getStatusColor = (status) => {
     switch (status) {
-      case 'waiting': return '#FFD166'; // SECUNDARIO
-      case 'playing': return '#28A745'; // Verde
-      case 'finished': return '#6C757D'; // Gris
-      default: return '#6C757D';
+      case 'waiting':
+        return '#FFD166'; // SECUNDARIO
+      case 'playing':
+        return '#28A745'; // Verde
+      case 'finished':
+        return '#6C757D'; // Gris
+      default:
+        return '#6C757D';
     }
   };
 
@@ -159,7 +175,10 @@ const ActiveRoomsScreen = ({ navigation }) => {
       <Text style={styles.emptyMessage}>
         Crea una nueva sala desde el dashboard para comenzar a jugar
       </Text>
-      <TouchableOpacity style={styles.createRoomButton} onPress={goBackToDashboard}>
+      <TouchableOpacity
+        style={styles.createRoomButton}
+        onPress={goBackToDashboard}
+      >
         <Text style={styles.createRoomButtonText}>🏠 Ir al Dashboard</Text>
       </TouchableOpacity>
     </View>
@@ -182,16 +201,17 @@ const ActiveRoomsScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={goBackToDashboard}>
-          <Text style={styles.backButtonText}>← Volver</Text>
-        </TouchableOpacity>
-        
-        <Image 
+        <BackButton
+          onPress={goBackToDashboard}
+          text="← Volver"
+        />
+
+        <Image
           source={require('../../../assets/images/logoSinFondo.png')}
           style={styles.logo}
-          resizeMode="contain"
+          resizeMode='contain'
         />
-        
+
         <View style={styles.headerSpacer} />
       </View>
 
@@ -211,20 +231,30 @@ const ActiveRoomsScreen = ({ navigation }) => {
           keyExtractor={(item) => item.id}
           contentContainerStyle={[
             styles.listContainer,
-            userRooms.length === 0 && styles.emptyListContainer
+            userRooms.length === 0 && styles.emptyListContainer,
           ]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
               colors={['#6F4E37']} // PRINCIPAL
-              tintColor="#6F4E37" // Para iOS
+              tintColor='#6F4E37' // Para iOS
             />
           }
           ListEmptyComponent={!loading && !error ? renderEmptyState : null}
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Modal personalizado */}
+      <CustomModal
+        visible={modalVisible}
+        title={modalData.title}
+        message={modalData.message}
+        type={modalData.type}
+        onClose={hideModal}
+        confirmText={modalData.confirmText}
+      />
     </SafeAreaView>
   );
 };
@@ -237,7 +267,8 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 32,
+    paddingBottom: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -253,6 +284,7 @@ const styles = StyleSheet.create({
   backButton: {
     paddingHorizontal: 12,
     paddingVertical: 8,
+    marginTop: 24,
   },
   backButtonText: {
     color: '#6F4E37', // PRINCIPAL
@@ -262,6 +294,7 @@ const styles = StyleSheet.create({
   logo: {
     width: 40,
     height: 40,
+    marginTop: 24,
   },
   headerSpacer: {
     width: 44, // Mismo ancho que el botón de refrescar para mantener centrado el logo

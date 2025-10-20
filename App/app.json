@@ -3,9 +3,9 @@
     "name": "CoffeeCenfo App",
     "slug": "react-native-mvc-app",
     "version": "1.0.0",
+    "sdkVersion": "49.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
     "primaryColor": "#6F4E37",
     "splash": {
       "backgroundColor": "#F5F5F5"
@@ -15,15 +15,16 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "statusBarStyle": "dark"
+      "bundleIdentifier": "y",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#F5F5F5"
       },
-      "package": "com.coffeecenfo.reactnativemvcapp",
-      "statusBarStyle": "dark",
-      "statusBarBackgroundColor": "#6F4E37"
+      "package": "com.coffeecenfo.reactnativemvcapp"
     },
     "web": {
       "bundler": "metro",
@@ -34,6 +35,11 @@
       "enabled": false,
       "checkAutomatically": "ON_ERROR_RECOVERY",
       "fallbackToCacheTimeout": 0
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3f9f62fa-e17f-4fa0-8c13-1f8e00021494"
+      }
     }
   }
 }

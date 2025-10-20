@@ -6,6 +6,7 @@ import RoomCreatedScreen from '../views/screens/RoomCreatedScreen';
 import ActiveRoomsScreen from '../views/screens/ActiveRoomsScreen';
 import JoinRoomScreen from '../views/screens/JoinRoomScreen';
 import FeatureFlagsScreen from '../views/screens/FeatureFlagsScreen';
+import GameScreen from '../views/screens/GameScreen';
 
 // Crear instancia del stack navigator
 const Stack = createStackNavigator();
@@ -17,7 +18,7 @@ const Stack = createStackNavigator();
 const AppNavigator = () => {
   return (
     <Stack.Navigator
-      initialRouteName="Login"
+      initialRouteName='Login'
       screenOptions={{
         headerStyle: {
           backgroundColor: '#007AFF', // Color primario del tema
@@ -31,17 +32,17 @@ const AppNavigator = () => {
     >
       {/* Pantalla de Login */}
       <Stack.Screen
-        name="Login"
+        name='Login'
         component={LoginScreen}
         options={{
           title: 'Iniciar Sesión',
           headerShown: false, // Ocultar header en login para diseño más limpio
         }}
       />
-      
+
       {/* Pantalla de Dashboard */}
       <Stack.Screen
-        name="Dashboard"
+        name='Dashboard'
         component={DashboardScreen}
         options={{
           title: 'Dashboard',
@@ -49,10 +50,10 @@ const AppNavigator = () => {
           gestureEnabled: false, // Deshabilitar gesto de volver en iOS
         }}
       />
-      
+
       {/* Pantalla de Sala Creada */}
       <Stack.Screen
-        name="RoomCreated"
+        name='RoomCreated'
         component={RoomCreatedScreen}
         options={{
           title: 'Sala Creada',
@@ -63,12 +64,13 @@ const AppNavigator = () => {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
+          headerShown: false, // Ocultamos el header porque la pantalla tiene su propio header personalizado
         }}
       />
-      
+
       {/* Pantalla de Salas Activas */}
       <Stack.Screen
-        name="ActiveRooms"
+        name='ActiveRooms'
         component={ActiveRoomsScreen}
         options={{
           title: 'Salas Activas',
@@ -82,10 +84,10 @@ const AppNavigator = () => {
           headerShown: false, // Ocultamos el header porque la pantalla tiene su propio header personalizado
         }}
       />
-      
+
       {/* Pantalla de Unirse a Sala */}
       <Stack.Screen
-        name="JoinRoom"
+        name='JoinRoom'
         component={JoinRoomScreen}
         options={{
           title: 'Unirse a Sala',
@@ -99,13 +101,30 @@ const AppNavigator = () => {
           headerShown: false, // Ocultamos el header porque la pantalla tiene su propio header personalizado
         }}
       />
-      
+
       {/* Pantalla de Feature Flags */}
       <Stack.Screen
-        name="FeatureFlags"
+        name='FeatureFlags'
         component={FeatureFlagsScreen}
         options={{
           title: 'Feature Flags',
+          headerStyle: {
+            backgroundColor: '#6F4E37', // PRINCIPAL
+          },
+          headerTintColor: '#FFFFFF',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          headerShown: false, // Ocultamos el header porque la pantalla tiene su propio header personalizado
+        }}
+      />
+
+      {/* Pantalla de Juego */}
+      <Stack.Screen
+        name='Game'
+        component={GameScreen}
+        options={{
+          title: 'Partida',
           headerStyle: {
             backgroundColor: '#6F4E37', // PRINCIPAL
           },

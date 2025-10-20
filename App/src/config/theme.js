@@ -9,37 +9,37 @@ export const theme = {
     primary: '#007AFF',
     primaryDark: '#0056CC',
     primaryLight: '#66B3FF',
-    
+
     // Colores secundarios
     secondary: '#5856D6',
     secondaryDark: '#3C3B94',
     secondaryLight: '#8F8EEA',
-    
+
     // Colores de estado
     success: '#34C759',
     warning: '#FF9500',
     error: '#FF3B30',
     info: '#5AC8FA',
-    
+
     // Colores de texto
     text: '#1C1C1E',
     textSecondary: '#8E8E93',
     textLight: '#FFFFFF',
-    
+
     // Colores de fondo
     background: '#F2F2F7',
     backgroundSecondary: '#FFFFFF',
-    
+
     // Colores de superficie
     white: '#FFFFFF',
     black: '#000000',
-    
+
     // Colores de interfaz
     border: '#C6C6C8',
     borderLight: '#E5E5EA',
     shadow: '#000000',
     disabled: '#C7C7CC',
-    
+
     // Transparencias
     overlay: 'rgba(0, 0, 0, 0.5)',
     overlayLight: 'rgba(0, 0, 0, 0.3)',
@@ -117,7 +117,7 @@ export const theme = {
         width: 0,
         height: 4,
       },
-      shadowOpacity: 0.30,
+      shadowOpacity: 0.3,
       shadowRadius: 4.65,
       elevation: 8,
     },
@@ -149,7 +149,7 @@ export const commonStyles = {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  
+
   centerContainer: {
     flex: 1,
     justifyContent: 'center',

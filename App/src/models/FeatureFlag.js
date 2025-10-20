@@ -44,7 +44,7 @@ export class FeatureFlag {
       description: data.description || data.feature_flag_description,
       value: data.value !== undefined ? data.value : data.feature_flag_value,
       created_at: data.created_at || data.createdAt,
-      updated_at: data.updated_at || data.updatedAt
+      updated_at: data.updated_at || data.updatedAt,
     };
 
     if (!extractedData.id && !extractedData.name) {
@@ -61,7 +61,7 @@ export class FeatureFlag {
    */
   static fromApiResponse(apiData) {
     const extractedData = FeatureFlag._extractFeatureFlagData(apiData);
-    
+
     if (!extractedData) {
       throw new Error('Datos de feature flag inválidos');
     }
@@ -128,13 +128,13 @@ export class FeatureFlag {
     if (!this.createdAt) {
       return 'Fecha no disponible';
     }
-    
+
     try {
       const date = new Date(this.createdAt);
       return date.toLocaleDateString('es-ES', {
         year: 'numeric',
         month: 'long',
-        day: 'numeric'
+        day: 'numeric',
       });
     } catch (error) {
       return 'Fecha inválida';
@@ -149,13 +149,13 @@ export class FeatureFlag {
     if (!this.updatedAt) {
       return 'Fecha no disponible';
     }
-    
+
     try {
       const date = new Date(this.updatedAt);
       return date.toLocaleDateString('es-ES', {
         year: 'numeric',
         month: 'long',
-        day: 'numeric'
+        day: 'numeric',
       });
     } catch (error) {
       return 'Fecha inválida';
@@ -171,6 +171,28 @@ export class FeatureFlag {
   }
 
   /**
+   * Valida el formato del nombre de un feature flag
+   * @param {string} name - Nombre a validar
+   * @returns {boolean} - true si el nombre es válido
+   */
+  static isValidFeatureName(name) {
+    if (!name || typeof name !== 'string') {
+      return false;
+    }
+
+    const trimmedName = name.trim();
+
+    // Verificar longitud (3-50 caracteres)
+    if (trimmedName.length < 3 || trimmedName.length > 50) {
+      return false;
+    }
+
+    // Verificar que solo contenga letras, números, guiones y guiones bajos
+    const validNamePattern = /^[a-zA-Z0-9_-]+$/;
+    return validNamePattern.test(trimmedName);
+  }
+
+  /**
    * Convierte la instancia a formato JSON para envío al servidor
    * @returns {Object} - Representación JSON del feature flag
    */
@@ -181,7 +203,7 @@ export class FeatureFlag {
       description: this.description,
       value: this.value,
       created_at: this.createdAt,
-      updated_at: this.updatedAt
+      updated_at: this.updatedAt,
     };
   }
 }

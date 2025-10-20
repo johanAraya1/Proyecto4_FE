@@ -6,11 +6,11 @@ def enableMinifyInReleaseBuilds = (findProperty('android.enableMinifyInReleaseBu
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
 android {
-    namespace "com.coffeecenfo.reactnativemvcapp"
+    namespace 'com.coffeecenfo.reactnativemvcapp'
     compileSdk rootProject.ext.compileSdkVersion
 
     defaultConfig {
-        applicationId "com.coffeecenfo.reactnativemvcapp"
+        applicationId 'com.coffeecenfo.reactnativemvcapp'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

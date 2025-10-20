@@ -12,7 +12,14 @@ export class User {
    * @param {string} role - Rol del usuario (opcional)
    * @param {number} elo - ELO del usuario (opcional)
    */
-  constructor(email, password, id = null, name = null, role = null, elo = null) {
+  constructor(
+    email,
+    password,
+    id = null,
+    name = null,
+    role = null,
+    elo = null
+  ) {
     this.id = id;
     this.email = email;
     this.password = password;
@@ -53,7 +60,7 @@ export class User {
   toApiObject() {
     return {
       email: this.email,
-      password: this.password
+      password: this.password,
     };
   }
 

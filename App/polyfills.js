@@ -83,6 +83,3 @@ if (typeof global !== 'undefined') {
 if (typeof global !== 'undefined' && !global._WORKLET) {
   global._WORKLET = false;
 }
-
-// Log para debugging
-console.log('PlatformConstants polyfill loaded:', PlatformConstants);

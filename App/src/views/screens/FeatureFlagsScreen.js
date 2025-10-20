@@ -9,16 +9,48 @@ import {
   Modal,
   TextInput,
   Switch,
-  RefreshControl
+  Platform,
+  Dimensions,
 } from 'react-native';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import { FeatureFlag } from '../../models/FeatureFlag';
+import { BackButton, CustomModal } from '../../components/common';
+import { useCustomModal } from '../../hooks/useCustomModal';
 
 /**
  * Pantalla de administración de Feature Flags
  * Permite a los administradores gestionar las banderas de características
  */
 const FeatureFlagsScreen = ({ navigation }) => {
+  // Hook para obtener dimensiones de pantalla
+  const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setScreenWidth(window.width);
+    });
+
+    return () => {
+      if (subscription?.remove) {
+        subscription.remove();
+      }
+    };
+  }, []);
+
+  // Calcular número de columnas basado en el ancho de pantalla
+  const getCardWidth = () => {
+    if (Platform.OS !== 'web') return '100%';
+    
+    const minCardWidth = 300;
+    const gap = 16;
+    const padding = 40; // 20px cada lado
+    const availableWidth = screenWidth - padding;
+    const columns = Math.floor(availableWidth / (minCardWidth + gap));
+    const cardWidth = (availableWidth - (gap * (columns - 1))) / columns;
+    
+    return Math.max(cardWidth, minCardWidth);
+  };
+
   const {
     featureFlags,
     loading,
@@ -27,27 +59,25 @@ const FeatureFlagsScreen = ({ navigation }) => {
     getAllFeatureFlags,
     createFeatureFlag,
     updateFeatureFlag,
-    toggleFeatureFlag,
     deleteFeatureFlag,
-    clearMessages
+    clearMessages,
   } = useFeatureFlags();
 
-  // Estados locales para el modal
+  // Hook para manejo de alertas/confirmaciones
+  const {
+    modalVisible: alertModalVisible,
+    modalData: alertConfig,
+    showModal: showAlert,
+    hideModal: hideAlert,
+  } = useCustomModal();
+
+  // Estados locales para el modal de edición
   const [modalVisible, setModalVisible] = useState(false);
   const [editingFeatureFlag, setEditingFeatureFlag] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    value: false
-  });
-
-  // Estados para alertas personalizadas
-  const [alertModalVisible, setAlertModalVisible] = useState(false);
-  const [alertData, setAlertData] = useState({
-    title: '',
-    message: '',
-    type: 'info',
-    onConfirm: null
+    value: false,
   });
 
   // Estado local de carga para acciones
@@ -69,7 +99,7 @@ const FeatureFlagsScreen = ({ navigation }) => {
       showAlert('Éxito', successMessage, 'success');
       clearMessages();
     }
-  }, [successMessage]);
+  }, [successMessage, showAlert]);
 
   /**
    * Carga todos los feature flags
@@ -79,35 +109,9 @@ const FeatureFlagsScreen = ({ navigation }) => {
       setIsPerformingAction(true);
       await getAllFeatureFlags();
     } catch (error) {
-      console.error('Error al cargar feature flags:', error);
       // No mostrar alert aquí ya que el hook ya maneja los errores
     } finally {
       setIsPerformingAction(false);
-    }
-  };
-
-  /**
-   * Muestra un alert personalizado
-   */
-  const showAlert = (title, message, type = 'info', onConfirm = null) => {
-    setAlertData({ title, message, type, onConfirm });
-    setAlertModalVisible(true);
-  };
-
-  /**
-   * Maneja el cierre del alert
-   */
-  const handleAlertClose = async () => {
-    setAlertModalVisible(false);
-    
-    if (alertData.onConfirm) {
-      try {
-        await alertData.onConfirm();
-      } catch (error) {
-        console.error('Error en acción de confirmación:', error);
-        // Si hay error, al menos refrescar la lista para mantener sincronización
-        await loadFeatureFlags();
-      }
     }
   };
 
@@ -119,7 +123,7 @@ const FeatureFlagsScreen = ({ navigation }) => {
     setFormData({
       name: '',
       description: '',
-      value: false
+      value: false,
     });
     setModalVisible(true);
   };
@@ -132,40 +136,9 @@ const FeatureFlagsScreen = ({ navigation }) => {
     setFormData({
       name: featureFlag.name,
       description: featureFlag.description || '',
-      value: featureFlag.value
+      value: featureFlag.value,
     });
     setModalVisible(true);
-  };
-
-  /**
-   * Maneja el toggle de un feature flag
-   */
-  const handleToggle = async (featureFlag) => {
-    if (isPerformingAction) return; // Prevenir múltiples acciones simultáneas
-    
-    const newValue = !featureFlag.value;
-    const action = newValue ? 'habilitar' : 'deshabilitar';
-    
-    showAlert(
-      'Confirmar Cambio',
-      `¿Estás seguro de que quieres ${action} el feature flag "${featureFlag.getDisplayName()}"?`,
-      'warning',
-      async () => {
-        try {
-          setIsPerformingAction(true);
-          const result = await toggleFeatureFlag(featureFlag.id);
-          if (result) {
-            // Refrescar la lista después del toggle
-            await loadFeatureFlags();
-          }
-        } catch (error) {
-          console.error('Error en toggle:', error);
-          showAlert('Error', 'No se pudo cambiar el estado del feature flag', 'error');
-        } finally {
-          setIsPerformingAction(false);
-        }
-      }
-    );
   };
 
   /**
@@ -173,7 +146,7 @@ const FeatureFlagsScreen = ({ navigation }) => {
    */
   const handleDelete = (featureFlag) => {
     if (isPerformingAction) return; // Prevenir múltiples acciones simultáneas
-    
+
     showAlert(
       'Confirmar Eliminación',
       `¿Estás seguro de que quieres eliminar el feature flag "${featureFlag.getDisplayName()}"?\n\nEsta acción no se puede deshacer.`,
@@ -187,7 +160,6 @@ const FeatureFlagsScreen = ({ navigation }) => {
             await loadFeatureFlags();
           }
         } catch (error) {
-          console.error('Error en delete:', error);
           showAlert('Error', 'No se pudo eliminar el feature flag', 'error');
         } finally {
           setIsPerformingAction(false);
@@ -201,17 +173,19 @@ const FeatureFlagsScreen = ({ navigation }) => {
    */
   const validateForm = () => {
     const errors = [];
-    
+
     if (!formData.name.trim()) {
       errors.push('El nombre es requerido');
     } else if (!FeatureFlag.isValidFeatureName(formData.name.trim())) {
-      errors.push('El nombre debe tener entre 3-50 caracteres y solo letras, números, guiones y guiones bajos');
+      errors.push(
+        'El nombre debe tener entre 3-50 caracteres y solo letras, números, guiones y guiones bajos'
+      );
     }
-    
+
     if (formData.description && formData.description.length > 255) {
       errors.push('La descripción no puede exceder 255 caracteres');
     }
-    
+
     return errors;
   };
 
@@ -220,9 +194,9 @@ const FeatureFlagsScreen = ({ navigation }) => {
    */
   const handleSubmit = async () => {
     if (isPerformingAction) return; // Prevenir múltiples envíos
-    
+
     const errors = validateForm();
-    
+
     if (errors.length > 0) {
       showAlert('Datos Inválidos', errors.join('\n'), 'error');
       return;
@@ -230,18 +204,21 @@ const FeatureFlagsScreen = ({ navigation }) => {
 
     try {
       setIsPerformingAction(true);
-      
+
       const featureFlagData = {
         name: formData.name.trim(),
         description: formData.description.trim() || null,
-        value: formData.value
+        value: formData.value,
       };
 
       let success = false;
 
       if (editingFeatureFlag) {
         // Actualizar existing
-        const result = await updateFeatureFlag(editingFeatureFlag.id, featureFlagData);
+        const result = await updateFeatureFlag(
+          editingFeatureFlag.id,
+          featureFlagData
+        );
         success = !!result;
       } else {
         // Crear nuevo
@@ -253,12 +230,11 @@ const FeatureFlagsScreen = ({ navigation }) => {
         setModalVisible(false);
         setFormData({ name: '', description: '', value: false });
         setEditingFeatureFlag(null);
-        
-        // Refrescar la lista después de crear o actualizar
-        await loadFeatureFlags();
+
+        // NO llamar loadFeatureFlags() porque limpia el successMessage
+        // El hook updateFeatureFlag ya actualiza la lista correctamente
       }
     } catch (error) {
-      console.error('Error en submit:', error);
       showAlert('Error', 'No se pudo guardar el feature flag', 'error');
     } finally {
       setIsPerformingAction(false);
@@ -277,141 +253,151 @@ const FeatureFlagsScreen = ({ navigation }) => {
   /**
    * Renderiza una fila de la tabla
    */
-  const renderFeatureFlagRow = (featureFlag, index) => (
-    <View key={featureFlag.id} style={[styles.tableRow, index % 2 === 0 && styles.tableRowEven]}>
-      <View style={styles.tableCell}>
-        <Text style={styles.featureName}>{featureFlag.getDisplayName()}</Text>
-        <Text style={styles.featureDescription} numberOfLines={2}>
-          {featureFlag.description || 'Sin descripción'}
-        </Text>
-      </View>
-      
-      <View style={styles.statusCell}>
-        <View style={[
-          styles.statusBadge,
-          { backgroundColor: featureFlag.isEnabled() ? '#28A745' : '#6C757D' }
-        ]}>
-          <Text style={styles.statusText}>
-            {featureFlag.getStatusInSpanish()}
+  const renderFeatureFlagCard = (featureFlag, _index) => {
+    const cardWidth = getCardWidth();
+    
+    return (
+      <View 
+        key={featureFlag.id} 
+        style={[
+          styles.card, 
+          { width: cardWidth }
+        ]}
+      >
+        {/* Header del card con icono y estado */}
+        <View style={styles.cardHeader}>
+          <View style={styles.cardTitleContainer}>
+            <Text style={styles.cardIcon}>🚩</Text>
+            <Text style={styles.cardTitle} numberOfLines={1} ellipsizeMode="tail">
+              {featureFlag.getDisplayName()}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.statusBadge,
+              featureFlag.isEnabled() ? styles.enabledBadge : styles.disabledBadge,
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                featureFlag.isEnabled() ? styles.enabledText : styles.disabledText,
+              ]}
+            >
+              {featureFlag.getStatusInSpanish()}
+            </Text>
+          </View>
+        </View>
+
+        {/* Descripción */}
+        <View style={styles.cardContent}>
+          <Text style={styles.cardDescription} numberOfLines={3}>
+            {featureFlag.description || 'Sin descripción'}
           </Text>
         </View>
+
+        {/* Footer con botones de acción */}
+        <View style={styles.cardFooter}>
+          <TouchableOpacity
+            style={[
+              styles.cardActionButton,
+              styles.editButton,
+              (loading || isPerformingAction) && styles.disabledButton,
+            ]}
+            onPress={() => handleEdit(featureFlag)}
+            disabled={loading || isPerformingAction}
+          >
+            <Text style={styles.cardActionIcon}>✏️</Text>
+            <Text style={styles.cardActionText}>Editar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.cardActionButton,
+              styles.deleteButton,
+              (loading || isPerformingAction) && styles.disabledButton,
+            ]}
+            onPress={() => handleDelete(featureFlag)}
+            disabled={loading || isPerformingAction}
+          >
+            <Text style={styles.cardActionIcon}>🗑️</Text>
+            <Text style={styles.cardActionText}>Eliminar</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-      
-      <View style={styles.actionsCell}>
-        <TouchableOpacity
-          style={[
-            styles.actionButton, 
-            styles.toggleButton,
-            (loading || isPerformingAction) && styles.disabledButton
-          ]}
-          onPress={() => handleToggle(featureFlag)}
-          disabled={loading || isPerformingAction}
-        >
-          <Text style={styles.actionButtonText}>
-            {featureFlag.isEnabled() ? '🔴' : '🟢'}
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[
-            styles.actionButton, 
-            styles.editButton,
-            (loading || isPerformingAction) && styles.disabledButton
-          ]}
-          onPress={() => handleEdit(featureFlag)}
-          disabled={loading || isPerformingAction}
-        >
-          <Text style={styles.actionButtonText}>✏️</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[
-            styles.actionButton, 
-            styles.deleteButton,
-            (loading || isPerformingAction) && styles.disabledButton
-          ]}
-          onPress={() => handleDelete(featureFlag)}
-          disabled={loading || isPerformingAction}
-        >
-          <Text style={styles.actionButtonText}>🗑️</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backButtonText}>← Volver</Text>
-        </TouchableOpacity>
-        
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>🚩 Feature Flags</Text>
-          <Text style={styles.headerSubtitle}>Gestiona las características del sistema</Text>
-        </View>
-        
-        <TouchableOpacity 
-          style={[
-            styles.createButton,
-            (loading || isPerformingAction) && styles.disabledButton
-          ]}
-          onPress={handleCreateNew}
-          disabled={loading || isPerformingAction}
-        >
-          <Text style={styles.createButtonText}>+ Nuevo</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Mensaje de advertencia para modo mock */}
-      {error && error.includes('datos de prueba') && (
-        <View style={styles.mockWarning}>
-          <Text style={styles.mockWarningIcon}>⚠️</Text>
-          <View style={styles.mockWarningText}>
-            <Text style={styles.mockWarningTitle}>Modo de Prueba</Text>
-            <Text style={styles.mockWarningSubtitle}>
-              Backend no disponible. Mostrando datos de ejemplo.
-            </Text>
-          </View>
-        </View>
-      )}
-
-      {/* Tabla */}
-      <ScrollView 
-        style={styles.tableContainer}
-        refreshControl={
-          <RefreshControl 
-            refreshing={loading} 
-            onRefresh={loadFeatureFlags}
-            colors={['#007BFF']}
-          />
-        }
+      <ScrollView
+        style={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Header de la tabla */}
-        <View style={styles.tableHeader}>
-          <Text style={styles.tableHeaderText}>Feature Flag</Text>
-          <Text style={styles.tableHeaderText}>Estado</Text>
-          <Text style={styles.tableHeaderText}>Acciones</Text>
-        </View>
+        {/* Header */}
+        <View style={styles.header}>
+          {/* Barra superior con botones */}
+          <View style={styles.topButtonBar}>
+            <BackButton
+              navigation={navigation}
+              text="← Volver"
+            />
 
-        {/* Filas de la tabla */}
-        {featureFlags.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateIcon}>🚩</Text>
-            <Text style={styles.emptyStateTitle}>No hay Feature Flags</Text>
-            <Text style={styles.emptyStateSubtitle}>
-              Crea tu primer feature flag para empezar
+            <TouchableOpacity
+              style={[
+                styles.createButton,
+                (loading || isPerformingAction) && styles.disabledButton,
+              ]}
+              onPress={handleCreateNew}
+              disabled={loading || isPerformingAction}
+            >
+              <Text style={styles.createButtonText}>+ Nuevo</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Título centrado */}
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>🚩 Feature Flags</Text>
+            <Text style={styles.headerSubtitle}>
+              Gestiona las características del sistema
             </Text>
           </View>
-        ) : (
-          featureFlags.map(renderFeatureFlagRow)
+        </View>
+
+        {/* Mensaje de advertencia para modo mock */}
+        {error && error.includes('datos de prueba') && (
+          <View style={styles.mockWarning}>
+            <Text style={styles.mockWarningIcon}>⚠️</Text>
+            <View style={styles.mockWarningText}>
+              <Text style={styles.mockWarningTitle}>Modo de Prueba</Text>
+              <Text style={styles.mockWarningSubtitle}>
+                Backend no disponible. Mostrando datos de ejemplo.
+              </Text>
+            </View>
+          </View>
         )}
+
+        {/* Contenedor de cards */}
+        <View style={styles.cardsContainer}>
+          {featureFlags.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>📋</Text>
+              <Text style={styles.emptyStateTitle}>Sin Feature Flags</Text>
+              <Text style={styles.emptyStateSubtitle}>
+                No hay feature flags configurados. Crea uno nuevo para comenzar.
+              </Text>
+            </View>
+          ) : (
+            featureFlags.map((featureFlag, index) =>
+              renderFeatureFlagCard(featureFlag, index)
+            )
+          )}
+        </View>
       </ScrollView>
 
       {/* Modal de formulario */}
       <Modal
-        animationType="slide"
+        animationType='slide'
         transparent={true}
         visible={modalVisible}
         onRequestClose={handleCancel}
@@ -420,7 +406,9 @@ const FeatureFlagsScreen = ({ navigation }) => {
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {editingFeatureFlag ? 'Editar Feature Flag' : 'Nuevo Feature Flag'}
+                {editingFeatureFlag
+                  ? 'Editar Feature Flag'
+                  : 'Nuevo Feature Flag'}
               </Text>
               <TouchableOpacity onPress={handleCancel}>
                 <Text style={styles.modalCloseButton}>✕</Text>
@@ -429,13 +417,15 @@ const FeatureFlagsScreen = ({ navigation }) => {
 
             <ScrollView style={styles.modalContent}>
               {/* Nombre */}
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Nombre *</Text>
+              <View style={styles.formField}>
+                <Text style={styles.fieldLabel}>Nombre *</Text>
                 <TextInput
-                  style={styles.formInput}
+                  style={styles.textInput}
                   value={formData.name}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-                  placeholder="ej: new_game_mode"
+                  onChangeText={(text) =>
+                    setFormData((prev) => ({ ...prev, name: text }))
+                  }
+                  placeholder='ej: new_game_mode'
                   editable={!editingFeatureFlag} // No permitir editar nombre
                 />
                 <Text style={styles.formHelp}>
@@ -444,25 +434,29 @@ const FeatureFlagsScreen = ({ navigation }) => {
               </View>
 
               {/* Descripción */}
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Descripción</Text>
+              <View style={styles.formField}>
+                <Text style={styles.fieldLabel}>Descripción</Text>
                 <TextInput
-                  style={[styles.formInput, styles.textArea]}
+                  style={[styles.textInput, styles.textInputMultiline]}
                   value={formData.description}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
-                  placeholder="Describe para qué sirve este feature flag"
+                  onChangeText={(text) =>
+                    setFormData((prev) => ({ ...prev, description: text }))
+                  }
+                  placeholder='Describe para qué sirve este feature flag'
                   multiline={true}
                   numberOfLines={3}
                 />
               </View>
 
               {/* Valor/Estado */}
-              <View style={styles.formGroup}>
+              <View style={styles.formField}>
                 <View style={styles.switchContainer}>
-                  <Text style={styles.formLabel}>Estado Inicial</Text>
+                  <Text style={styles.fieldLabel}>Estado Inicial</Text>
                   <Switch
                     value={formData.value}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, value }))}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, value }))
+                    }
                     trackColor={{ false: '#767577', true: '#28A745' }}
                     thumbColor={formData.value ? '#ffffff' : '#f4f3f4'}
                   />
@@ -473,27 +467,33 @@ const FeatureFlagsScreen = ({ navigation }) => {
               </View>
             </ScrollView>
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity 
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
                 style={[
+                  styles.modalButton,
                   styles.cancelButton,
-                  (loading || isPerformingAction) && styles.disabledButton
+                  (loading || isPerformingAction) && styles.disabledButton,
                 ]}
                 onPress={handleCancel}
                 disabled={loading || isPerformingAction}
               >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                <Text style={styles.modalButtonText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
-                  styles.submitButton,
-                  (loading || isPerformingAction) && styles.disabledButton
+                  styles.modalButton,
+                  styles.saveButton,
+                  (loading || isPerformingAction) && styles.disabledButton,
                 ]}
                 onPress={handleSubmit}
                 disabled={loading || isPerformingAction}
               >
-                <Text style={styles.submitButtonText}>
-                  {isPerformingAction ? 'Guardando...' : (editingFeatureFlag ? 'Actualizar' : 'Crear')}
+                <Text style={styles.modalButtonText}>
+                  {isPerformingAction
+                    ? 'Guardando...'
+                    : editingFeatureFlag
+                      ? 'Actualizar'
+                      : 'Crear'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -501,131 +501,102 @@ const FeatureFlagsScreen = ({ navigation }) => {
         </View>
       </Modal>
 
-      {/* Modal de alerta personalizada */}
-      <Modal
-        animationType="fade"
-        transparent={true}
+      {/* Modal de alerta personalizada usando CustomModal */}
+      <CustomModal
         visible={alertModalVisible}
-        onRequestClose={handleAlertClose}
-      >
-        <View style={styles.alertOverlay}>
-          <View style={styles.alertContainer}>
-            <View style={styles.alertContent}>
-              <View style={[
-                styles.alertIconContainer,
-                { backgroundColor: getAlertColor(alertData.type) }
-              ]}>
-                <Text style={styles.alertIcon}>{getAlertIcon(alertData.type)}</Text>
-              </View>
-
-              <Text style={styles.alertTitle}>{alertData.title}</Text>
-              <Text style={styles.alertMessage}>{alertData.message}</Text>
-
-              <TouchableOpacity 
-                style={[
-                  styles.alertButton,
-                  { backgroundColor: getAlertButtonColor(alertData.type) }
-                ]}
-                onPress={handleAlertClose}
-              >
-                <Text style={styles.alertButtonText}>OK</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={hideAlert}
+        title={alertConfig?.title}
+        message={alertConfig?.message}
+        type={alertConfig?.type}
+        onConfirm={alertConfig?.onConfirm}
+      />
     </SafeAreaView>
   );
-};
-
-// Funciones auxiliares para alertas
-const getAlertIcon = (type) => {
-  switch (type) {
-    case 'success': return '✅';
-    case 'error': return '❌';
-    case 'warning': return '⚠️';
-    default: return 'ℹ️';
-  }
-};
-
-const getAlertColor = (type) => {
-  switch (type) {
-    case 'success': return '#D4F6D4';
-    case 'error': return '#FFE6E6';
-    case 'warning': return '#FFF3CD';
-    default: return '#D1ECF1';
-  }
-};
-
-const getAlertButtonColor = (type) => {
-  switch (type) {
-    case 'success': return '#28A745';
-    case 'error': return '#DC3545';
-    case 'warning': return '#FFC107';
-    default: return '#17A2B8';
-  }
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F8F9FA',
+  },
+  scrollContainer: {
+    flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingTop: 32,
+    paddingBottom: 20,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: '#E9ECEF',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  backButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#6C757D',
-    borderRadius: 8,
-  },
-  backButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
+  topButtonBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 20,
   },
   headerContent: {
-    flex: 1,
     alignItems: 'center',
+    marginBottom: 0,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#212529',
+    marginBottom: 6,
+    textAlign: 'center',
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
+    fontSize: 15,
+    color: '#6C757D',
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
   createButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     backgroundColor: '#007BFF',
     borderRadius: 8,
+    alignSelf: 'flex-start',
   },
   createButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  disabledButton: {
+    backgroundColor: '#ADB5BD',
   },
   mockWarning: {
     backgroundColor: '#FFF3CD',
     borderLeftWidth: 4,
     borderLeftColor: '#FFC107',
-    padding: 12,
-    marginHorizontal: 16,
-    marginTop: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 20,
+    marginTop: 16,
     borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   mockWarningIcon: {
     fontSize: 20,
@@ -644,96 +615,45 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#856404',
   },
-  tableContainer: {
-    flex: 1,
-    padding: 16,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#343A40',
-    paddingVertical: 12,
+  
+  // Status badges - mantenemos estos porque se usan en cards
+  statusBadge: {
+    paddingVertical: 8,
     paddingHorizontal: 16,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-  },
-  tableHeaderText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-    flex: 1,
-    textAlign: 'center',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  tableRowEven: {
-    backgroundColor: '#F8F9FA',
-  },
-  tableCell: {
-    flex: 2,
-    paddingRight: 8,
-  },
-  featureName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  featureDescription: {
-    fontSize: 12,
-    color: '#666',
-  },
-  statusCell: {
-    flex: 1,
+    borderRadius: 20,
+    minWidth: 90,
+    maxWidth: 130, // Aumentamos para permitir "Deshabilitado" completo
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+  enabledBadge: {
+    backgroundColor: '#D4EDDA',
+  },
+  disabledBadge: {
+    backgroundColor: '#F8D7DA',
   },
   statusText: {
-    color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
-  actionsCell: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
+  enabledText: {
+    color: '#155724',
   },
-  actionButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+  disabledText: {
+    color: '#721C24',
   },
-  toggleButton: {
-    backgroundColor: '#F8F9FA',
-  },
+  
+  // Botones de acción - actualizamos para cards
   editButton: {
     backgroundColor: '#FFC107',
   },
   deleteButton: {
     backgroundColor: '#DC3545',
   },
-  actionButtonText: {
-    fontSize: 14,
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
   emptyState: {
+    paddingVertical: 40,
+    paddingHorizontal: 20,
     alignItems: 'center',
-    paddingVertical: 48,
     backgroundColor: '#FFFFFF',
   },
   emptyStateIcon: {
@@ -743,16 +663,18 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#212529',
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptyStateSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: '#6C757D',
     textAlign: 'center',
+    lineHeight: 20,
   },
 
-  // Estilos del modal
+  // Modales
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -761,156 +683,191 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     backgroundColor: '#FFFFFF',
-    margin: 20,
     borderRadius: 12,
-    maxHeight: '80%',
+    padding: 20,
+    marginHorizontal: 20,
+    maxWidth: 400,
     width: '90%',
-    maxWidth: 500,
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    marginBottom: 20,
+    paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: '#E9ECEF',
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '600',
+    color: '#212529',
   },
   modalCloseButton: {
-    fontSize: 20,
-    color: '#666',
-    padding: 4,
+    fontSize: 24,
+    color: '#6C757D',
+    fontWeight: '300',
+    padding: 5,
   },
   modalContent: {
-    padding: 20,
+    maxHeight: 300,
   },
-  formGroup: {
+  formField: {
     marginBottom: 20,
   },
-  formLabel: {
-    fontSize: 16,
+  fieldLabel: {
+    fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: '#212529',
     marginBottom: 8,
   },
-  formInput: {
+  textInput: {
     borderWidth: 1,
     borderColor: '#CED4DA',
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 10,
     fontSize: 16,
     backgroundColor: '#FFFFFF',
   },
-  textArea: {
+  textInputMultiline: {
     height: 80,
     textAlignVertical: 'top',
   },
   formHelp: {
     fontSize: 12,
-    color: '#666',
+    color: '#6C757D',
     marginTop: 4,
+    fontStyle: 'italic',
   },
   switchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 10,
   },
   switchLabel: {
     fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
+    color: '#212529',
+    flex: 1,
   },
-  modalActions: {
+  modalFooter: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    padding: 20,
+    marginTop: 20,
+    paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+    borderTopColor: '#E9ECEF',
+  },
+  modalButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginLeft: 10,
+    minWidth: 80,
+    alignItems: 'center',
   },
   cancelButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    marginRight: 12,
     backgroundColor: '#6C757D',
   },
-  cancelButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  submitButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+  saveButton: {
     backgroundColor: '#007BFF',
   },
-  submitButtonText: {
+  modalButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
-
-  // Estilos de alerta personalizada
-  alertOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+  
+  // Estilos para Cards
+  cardsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 30,
+    justifyContent: Platform.OS === 'web' ? 'flex-start' : 'center',
+    gap: Platform.OS === 'web' ? 16 : 0, // Gap entre cards en web
   },
-  alertContainer: {
+  card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 0,
-    maxWidth: 400,
-    width: '100%',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    // El ancho se calcula dinámicamente en getCardWidth()
+    minWidth: 280,
   },
-  alertContent: {
-    padding: 24,
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
+    gap: 8, // Espacio entre el título y el badge
   },
-  alertIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
+  cardTitleContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    minWidth: 0, // Permite que se comprima si es necesario
+  },
+  cardIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#212529',
+    flex: 1,
+    minWidth: 0, // Permite que el texto se corte si es necesario
+  },
+  cardContent: {
     marginBottom: 16,
   },
-  alertIcon: {
-    fontSize: 30,
-  },
-  alertTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  alertMessage: {
+  cardDescription: {
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+    color: '#6C757D',
     lineHeight: 20,
-    marginBottom: 20,
   },
-  alertButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 32,
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  cardActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderRadius: 8,
-    minWidth: 100,
+    gap: 6,
   },
-  alertButtonText: {
-    color: '#FFFFFF',
+  cardActionIcon: {
     fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
+  },
+  cardActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
 

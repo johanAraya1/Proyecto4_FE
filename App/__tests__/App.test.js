@@ -4,7 +4,7 @@ import App from '../App';
 
 describe('App', () => {
   it('renders correctly', () => {
-    const { getByText } = render(<App />);
+    render(<App />);
     // Este test básico simplemente verifica que la app se renderice sin errores
     expect(true).toBe(true);
   });

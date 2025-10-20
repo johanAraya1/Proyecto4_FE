@@ -1,19 +1,8 @@
-import { Platform } from 'react-native';
+import { API_BASE_URL, ENDPOINTS } from '../config/api';
 
 /**
  * Servicio para gestionar el ranking de jugadores
  */
-
-// Función para obtener la URL base según la plataforma
-const getBaseURL = () => {
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:3000/api'; // Para emulador Android
-  } else if (Platform.OS === 'web') {
-    return 'http://localhost:3000/api'; // Para web
-  } else {
-    return 'http://192.168.1.100:3000/api'; // Para iOS - cambiar por tu IP local
-  }
-};
 
 export const rankingService = {
   /**
@@ -22,7 +11,7 @@ export const rankingService = {
    */
   async getTop10Players() {
     try {
-      const response = await fetch(`${getBaseURL()}/ranking`, {
+      const response = await fetch(`${API_BASE_URL}${ENDPOINTS.RANKING.BASE}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -36,8 +25,6 @@ export const rankingService = {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Error fetching ranking:', error);
-      
       // Retornar datos de ejemplo en caso de error
       return [
         { rank: 1, name: 'Magnus', elo: 2830 },
@@ -49,7 +36,7 @@ export const rankingService = {
         { rank: 7, name: 'Yi', elo: 2755 },
         { rank: 8, name: 'Caruana', elo: 2750 },
         { rank: 9, name: 'Nepomniachtchi', elo: 2745 },
-        { rank: 10, name: 'Arjun', elo: 2740 }
+        { rank: 10, name: 'Arjun', elo: 2740 },
       ];
     }
   },
@@ -61,24 +48,22 @@ export const rankingService = {
    * @returns {Promise<Object>} Respuesta del servidor
    */
   async updatePlayerElo(playerId, newElo) {
-    try {
-      const response = await fetch(`${getBaseURL()}/ranking/${playerId}`, {
+    const response = await fetch(
+      `${API_BASE_URL}${ENDPOINTS.RANKING.PLAYER.replace('{playerId}', playerId)}`,
+      {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ elo: newElo }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
       }
+    );
 
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Error updating player ELO:', error);
-      throw error;
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-  }
+
+    const data = await response.json();
+    return data;
+  },
 };

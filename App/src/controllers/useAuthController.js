@@ -27,7 +27,7 @@ export const useAuthController = () => {
 
       // Crear instancia del modelo User
       const userModel = new User(email, password);
-      
+
       // Validar datos antes de enviar
       if (!userModel.isValid()) {
         throw new Error('Por favor ingresa un email y contraseña válidos');
@@ -35,24 +35,20 @@ export const useAuthController = () => {
 
       // Llamar al servicio de autenticación
       const response = await authService.login(userModel);
-      
+
       if (response.success) {
         // Actualizar estado con datos del usuario autenticado
         setUser(response.user);
         setIsAuthenticated(true);
-        
-        console.log('✅ Usuario autenticado:', response.user);
-        console.log('✅ Rol del usuario:', response.user?.role);
-        
+
         // Aquí puedes guardar el token en AsyncStorage si es necesario
         // await AsyncStorage.setItem('authToken', response.token);
-        
+
         return true;
       } else {
         throw new Error('Error en la autenticación');
       }
     } catch (err) {
-      console.log('❌ Error en login:', err.message);
       setError(err.message);
       return false;
     } finally {
@@ -67,18 +63,18 @@ export const useAuthController = () => {
   const logout = async () => {
     try {
       setIsLoading(true);
-      
+
       // Llamar al servicio de logout
       await authService.logout();
-      
+
       // Limpiar estado local
       setUser(null);
       setIsAuthenticated(false);
       setError(null);
-      
+
       // Limpiar token almacenado
       // await AsyncStorage.removeItem('authToken');
-      
+
       return true;
     } catch (err) {
       setError(err.message);
@@ -103,7 +99,7 @@ export const useAuthController = () => {
    */
   const validateFields = (email, password) => {
     const errors = {};
-    
+
     if (!email || !email.trim()) {
       errors.email = 'El email es requerido';
     } else {
@@ -112,13 +108,13 @@ export const useAuthController = () => {
         errors.email = 'El formato del email no es válido';
       }
     }
-    
+
     if (!password || !password.trim()) {
       errors.password = 'La contraseña es requerida';
     } else if (password.length < 6) {
       errors.password = 'La contraseña debe tener al menos 6 caracteres';
     }
-    
+
     return errors;
   };
 
@@ -129,14 +125,14 @@ export const useAuthController = () => {
   const restoreSession = async () => {
     try {
       setIsLoading(true);
-      
+
       // Aquí recuperarías el token de AsyncStorage
       // const token = await AsyncStorage.getItem('authToken');
       // if (token && await authService.validateSession(token)) {
       //   setIsAuthenticated(true);
       //   return true;
       // }
-      
+
       return false;
     } catch (err) {
       setError(err.message);
@@ -153,12 +149,12 @@ export const useAuthController = () => {
     error,
     user,
     isAuthenticated,
-    
+
     // Acciones
     login,
     logout,
     clearError,
     validateFields,
-    restoreSession
+    restoreSession,
   };
 };

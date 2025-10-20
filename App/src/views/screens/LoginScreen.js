@@ -5,15 +5,16 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   ActivityIndicator,
   Image,
-  Dimensions
+  Dimensions,
 } from 'react-native';
 import { useAuth } from '../../controllers/AuthContext';
+import { CustomModal } from '../../components/common';
+import { useCustomModal } from '../../hooks/useCustomModal';
 import GoogleLogo from '../../components/GoogleLogo';
 
 /**
@@ -28,6 +29,10 @@ const LoginScreen = ({ navigation }) => {
 
   // Usar el controlador de autenticación
   const { login, isLoading, error, clearError } = useAuth();
+
+  // Hook para modales personalizados
+  const { modalVisible, modalData, showErrorModal, hideModal } =
+    useCustomModal();
 
   /**
    * Maneja el proceso de login cuando se presiona el botón
@@ -47,16 +52,16 @@ const LoginScreen = ({ navigation }) => {
 
       // Intentar hacer login
       const success = await login(email.trim(), password);
-      
+
       if (success) {
         // Navegar al Dashboard si el login fue exitoso
         navigation.replace('Dashboard');
       } else {
         // El error se maneja automáticamente por el controlador
-        Alert.alert('Error', error || 'No se pudo iniciar sesión');
+        showErrorModal('Error', error || 'No se pudo iniciar sesión');
       }
     } catch (err) {
-      Alert.alert('Error', 'Ocurrió un error inesperado');
+      showErrorModal('Error', 'Ocurrió un error inesperado');
     }
   };
 
@@ -89,7 +94,7 @@ const LoginScreen = ({ navigation }) => {
     setEmail(text);
     // Limpiar error del campo si existe
     if (fieldErrors.email) {
-      setFieldErrors(prev => ({ ...prev, email: null }));
+      setFieldErrors((prev) => ({ ...prev, email: null }));
     }
   };
 
@@ -100,27 +105,27 @@ const LoginScreen = ({ navigation }) => {
     setPassword(text);
     // Limpiar error del campo si existe
     if (fieldErrors.password) {
-      setFieldErrors(prev => ({ ...prev, password: null }));
+      setFieldErrors((prev) => ({ ...prev, password: null }));
     }
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps='handled'
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.formContainer}>
           {/* Logo de CoffeeCenfo */}
           <View style={styles.logoContainer}>
-            <Image 
+            <Image
               source={require('../../../assets/images/logoSinFondo.png')}
               style={styles.logoImage}
-              resizeMode="contain"
+              resizeMode='contain'
             />
             <Text style={styles.brandName}>CoffeeCenfo</Text>
           </View>
@@ -132,13 +137,13 @@ const LoginScreen = ({ navigation }) => {
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="Email"
-              placeholderTextColor="#999"
+              placeholder='Email'
+              placeholderTextColor='#999'
               value={email}
               onChangeText={handleEmailChange}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
+              keyboardType='email-address'
+              autoCapitalize='none'
+              autoComplete='email'
               editable={!isLoading}
             />
           </View>
@@ -147,19 +152,21 @@ const LoginScreen = ({ navigation }) => {
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="#999"
+              placeholder='Password'
+              placeholderTextColor='#999'
               value={password}
               onChangeText={handlePasswordChange}
               secureTextEntry
-              autoComplete="password"
+              autoComplete='password'
               editable={!isLoading}
             />
           </View>
 
           {/* Enlace de contraseña olvidada */}
           <TouchableOpacity style={styles.forgotPasswordContainer}>
-            <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+            <Text style={styles.forgotPasswordText}>
+              ¿Olvidaste tu contraseña?
+            </Text>
           </TouchableOpacity>
 
           {/* Mensaje de error global */}
@@ -173,13 +180,13 @@ const LoginScreen = ({ navigation }) => {
           <TouchableOpacity
             style={[
               styles.loginButton,
-              isLoading && styles.loginButtonDisabled
+              isLoading && styles.loginButtonDisabled,
             ]}
             onPress={handleLogin}
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#F5F5F5" size="small" />
+              <ActivityIndicator color='#F5F5F5' size='small' />
             ) : (
               <Text style={styles.loginButtonText}>Ingresar</Text>
             )}
@@ -205,6 +212,16 @@ const LoginScreen = ({ navigation }) => {
           </View>
         </View>
       </ScrollView>
+
+      {/* Modal personalizado */}
+      <CustomModal
+        visible={modalVisible}
+        title={modalData.title}
+        message={modalData.message}
+        type={modalData.type}
+        onClose={hideModal}
+        confirmText={modalData.confirmText}
+      />
     </KeyboardAvoidingView>
   );
 };
@@ -233,7 +250,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     alignItems: 'center',
-    width: Platform.OS === 'web' ? Math.min(400, Dimensions.get('window').width - 48) : '100%',
+    width:
+      Platform.OS === 'web'
+        ? Math.min(400, Dimensions.get('window').width - 48)
+        : '100%',
     maxWidth: Platform.OS === 'web' ? 400 : '100%',
   },
   logoContainer: {

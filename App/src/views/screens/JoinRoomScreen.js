@@ -9,103 +9,37 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Modal,
-  Animated
+  ScrollView,
 } from 'react-native';
 import { useAuth } from '../../controllers/AuthContext';
 import { useRoom } from '../../hooks/useRoom';
+import { CustomModal, BackButton } from '../../components/common';
+import { useCustomModal } from '../../hooks/useCustomModal';
+import { navigateToDashboard } from '../../utils';
 
 const JoinRoomScreen = ({ navigation }) => {
   const { user } = useAuth();
-  const { getRoomByCode, joinRoomById, loading, error } = useRoom();
+  const { getRoomByCode, joinRoomById } = useRoom();
   const [roomCode, setRoomCode] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [foundRoom, setFoundRoom] = useState(null);
   const [isJoining, setIsJoining] = useState(false);
 
-  // Estados para el modal personalizado
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalData, setModalData] = useState({
-    title: '',
-    message: '',
-    icon: '',
-    type: 'success', // 'success' | 'error'
-    onConfirm: null
-  });
-
-  /**
-   * Función para mostrar modal personalizado
-   */
-  const showCustomAlert = (title, message, type = 'success', onConfirm = null) => {
-    console.log('🚨 showCustomAlert llamada:', title);
-    
-    const iconMap = {
-      success: '🎉',
-      error: '❌',
-      warning: '⚠️',
-      info: 'ℹ️'
-    };
-
-    const colorMap = {
-      success: '#D4F6D4',
-      error: '#FFE6E6', 
-      warning: '#FFF3CD',
-      info: '#D1ECF1'
-    };
-
-    const buttonColorMap = {
-      success: '#28A745',
-      error: '#DC3545',
-      warning: '#FFC107',
-      info: '#17A2B8'
-    };
-
-    setModalData({
-      title,
-      message,
-      icon: iconMap[type] || '🎉',
-      type,
-      onConfirm,
-      bgColor: colorMap[type] || '#D4F6D4',
-      buttonColor: buttonColorMap[type] || '#28A745'
-    });
-    setModalVisible(true);
-  };
-
-  /**
-   * Maneja el cierre del modal
-   */
-  const handleModalClose = () => {
-    console.log('🔄 Cerrando modal...');
-    setModalVisible(false);
-    
-    // Ejecutar callback si existe
-    if (modalData.onConfirm) {
-      console.log('🔄 Ejecutando callback del modal...');
-      setTimeout(() => {
-        modalData.onConfirm();
-      }, 300); // Pequeña pausa para la animación
-    }
-    
-    // Limpiar datos del modal
-    setTimeout(() => {
-      setModalData({
-        title: '',
-        message: '',
-        icon: '',
-        type: 'success',
-        onConfirm: null,
-        bgColor: '#D4F6D4',
-        buttonColor: '#28A745'
-      });
-    }, 300);
-  };
+  // Hook para manejar modales
+  const {
+    modalVisible,
+    modalData,
+    showSuccessModal,
+    showErrorModal,
+    showWarningModal,
+    hideModal,
+  } = useCustomModal();
 
   /**
    * Navega de vuelta al dashboard
    */
   const goBackToDashboard = () => {
-    navigation.navigate('Dashboard');
+    navigateToDashboard(navigation);
   };
 
   /**
@@ -114,10 +48,10 @@ const JoinRoomScreen = ({ navigation }) => {
   const formatRoomCode = (text) => {
     // Remover espacios y convertir a mayúsculas
     const formatted = text.replace(/\s/g, '').toUpperCase();
-    
+
     // Limitar a 6 caracteres alfanuméricos
     const alphanumeric = formatted.replace(/[^A-Z0-9]/g, '');
-    
+
     return alphanumeric.substring(0, 6);
   };
 
@@ -132,472 +66,347 @@ const JoinRoomScreen = ({ navigation }) => {
   /**
    * Valida si el código tiene el formato correcto
    */
-  const isValidCode = (code) => {
+  const isValidRoomCode = (code) => {
     return /^[A-Z0-9]{6}$/.test(code);
   };
 
   /**
-   * Busca la sala por código
+   * Busca una sala por su código
    */
   const handleSearchRoom = async () => {
-    console.log('🔍 Buscando sala con código:', roomCode);
-
-    // Validar código
     if (!roomCode.trim()) {
-      showCustomAlert('Error', 'Por favor ingresa un código de sala', 'error');
+      showErrorModal('Error', 'Por favor ingresa un código de sala');
       return;
     }
 
-    if (!isValidCode(roomCode)) {
-      showCustomAlert('Error', 'El código debe tener exactamente 6 caracteres alfanuméricos', 'error');
+    if (!isValidRoomCode(roomCode)) {
+      showErrorModal(
+        'Error',
+        'El código debe tener exactamente 6 caracteres alfanuméricos'
+      );
       return;
     }
 
     try {
       setIsSearching(true);
       setFoundRoom(null);
-      
-      // Buscar la sala
-      const room = await getRoomByCode(roomCode);
-      
-      if (room) {
-        console.log('✅ Sala encontrada:', room);
-        console.log('📊 Datos del creador:', {
-          creatorId: room.creatorId,
-          creatorName: room.creatorName,
-          getCreatorName: room.getCreatorName()
-        });
-        console.log('📅 Datos de fecha:', {
-          createdAt: room.createdAt,
-          formatted: formatCreatedDate(room.createdAt)
-        });
-        
-        // Verificar si la sala puede aceptar jugadores
-        if (room.isFull()) {
-          showCustomAlert(
-            'Sala Completa',
-            'Esta sala ya tiene 2 jugadores. No puedes unirte.',
-            'warning'
+
+      const response = await getRoomByCode(roomCode, user.id);
+
+      if (response) {
+        const { room, isUserInRoom, isRoomFull, message, userRole } = response;
+
+        // Caso 1: Usuario ya está en la sala
+        if (isUserInRoom) {
+          showErrorModal(
+            'Ya eres miembro',
+            message || `Ya formas parte de esta sala como ${userRole}`
           );
-          return;
+          return; // Detener el flujo
         }
 
-        if (room.status !== 'waiting') {
-          showCustomAlert(
-            'Sala No Disponible',
-            `Esta sala está en estado "${room.getStatusInSpanish()}". Solo puedes unirte a salas en espera.`,
-            'warning'
-          );
-          return;
+        // Caso 2: Sala está llena
+        if (isRoomFull) {
+          // Determinar el título apropiado basado en el mensaje
+          let title = 'Sala No Disponible';
+          const displayMessage = message || 'Esta sala ya está completa. ¡Busca otra sala para jugar!';
+          
+          // Si el mensaje indica que la sala ha terminado, usar un título más apropiado
+          if (message && (message.includes('terminado') || message.includes('finalizado'))) {
+            title = 'Sala Terminada';
+          } else if (message && message.includes('llena')) {
+            title = 'Sala Llena';
+          }
+          
+          showErrorModal(title, displayMessage);
+          return; // Detener el flujo
         }
 
-        // Verificar si el usuario no es ya parte de la sala
-        if (room.isParticipant(user?.id)) {
-          showCustomAlert(
-            'Ya Participas',
-            'Ya eres parte de esta sala.',
-            'info'
-          );
-          return;
-        }
-
-        // Mostrar la sala encontrada
+        // Caso 3: Sala disponible - continuar normalmente
         setFoundRoom(room);
+        showSuccessModal(
+          'Sala Encontrada',
+          `Sala creada por ${room.creatorName || 'Usuario desconocido'}`
+        );
       } else {
-        // Sala no encontrada
-        showCustomAlert(
+        showErrorModal(
           'Sala No Encontrada',
-          'No se encontró ninguna sala con ese código. Verifica que el código sea correcto.',
-          'error'
+          'No se encontró ninguna sala con ese código. Verifica que el código sea correcto.'
         );
       }
     } catch (err) {
-      console.error('💥 Error al buscar sala:', err);
-      showCustomAlert(
-        'Error',
-        err.message || 'Hubo un problema al buscar la sala. Inténtalo de nuevo.',
-        'error'
-      );
+      if (err.message.includes('conexión') || err.message.includes('network')) {
+        showErrorModal(
+          '🌐 Error de Conexión',
+          'Hay problemas con tu conexión a internet.\n\nVerifica tu conexión e inténtalo nuevamente.'
+        );
+      } else {
+        showErrorModal(
+          'Error al Buscar',
+          err.message || 'No se pudo buscar la sala. Inténtalo nuevamente.'
+        );
+      }
     } finally {
       setIsSearching(false);
     }
   };
 
   /**
-   * Se une a la sala encontrada
+   * Se une a una sala encontrada
    */
   const handleJoinRoom = async (room) => {
-    console.log('🚀 handleJoinRoom iniciado con sala:', room);
-    
-    if (!user?.id) {
-      console.log('❌ Error: usuario no encontrado:', user);
-      showCustomAlert('Error', 'No se pudo obtener la información del usuario', 'error', () => {
-        navigation.navigate('Dashboard');
-      });
+    if (!user) {
+      showErrorModal(
+        'Error',
+        'No se pudo obtener la información del usuario',
+        () => {
+          goBackToDashboard();
+        }
+      );
       return;
     }
 
     try {
-      console.log('🤝 Iniciando proceso de unión a la sala:', room.code, 'Usuario ID:', user.id);
       setIsJoining(true);
-      
-      // Llamar al endpoint para unirse
-      console.log('📞 Llamando a joinRoomById...');
+
       const updatedRoom = await joinRoomById(room.id, user.id);
-      console.log('📥 Respuesta de joinRoomById:', updatedRoom);
-      console.log('🔍 Evaluando condición updatedRoom:', !!updatedRoom, typeof updatedRoom, updatedRoom);
-      
-      // SIEMPRE mostrar un mensaje, sin importar la condición
-      console.log('🚨 Ejecutando Alert SIEMPRE...');
-      
-      if (updatedRoom && typeof updatedRoom === 'object') {
-        console.log('✅ Unido exitosamente a la sala - Ejecutando Alert de éxito');
-        console.log('🔍 Debug updatedRoom completo:', {
-          code: updatedRoom.code,
-          creatorId: updatedRoom.creatorId,
-          creatorName: updatedRoom.creatorName,
-          getCreatorName: updatedRoom.getCreatorName()
-        });
-        
-        // Usar el nombre del creador de la sala encontrada (foundRoom) que sí tiene el nombre
-        const creatorName = foundRoom?.getCreatorName() || updatedRoom.getCreatorName();
-        console.log('👤 Usando nombre del creador:', creatorName);
-        
-        showCustomAlert(
-          '¡Unión Exitosa!',
-          `Te has unido exitosamente a la sala juego.\n\nAhora debes esperar a que el creador "${creatorName}" inicie la partida.\n\n¡Buena suerte!`,
-          'success',
+
+      if (updatedRoom) {
+        const creatorName = updatedRoom.creatorName || 'Usuario desconocido';
+        showSuccessModal(
+          '¡Éxito!',
+          `Te has unido exitosamente a la sala de ${creatorName}`,
           () => {
-            console.log('🏠 Navegando al Dashboard...');
-            setRoomCode('');
-            setFoundRoom(null);
-            navigation.navigate('Dashboard');
+            goBackToDashboard();
           }
         );
       } else {
-        console.log('❌ Ejecutando Alert de error porque updatedRoom es falsy');
-        
-        showCustomAlert(
-          'Proceso Completado',
-          'El proceso se ejecutó. Verifica tu estado en el dashboard.',
-          'info',
+        showErrorModal(
+          'Error al Unirse',
+          'No se pudo unir a la sala. Inténtalo nuevamente.',
           () => {
-            console.log('🏠 Navegando al Dashboard (error genérico)...');
-            navigation.navigate('Dashboard');
+            goBackToDashboard();
           }
         );
       }
-      console.log('🚨 Alert.alert completado');
     } catch (err) {
-      console.error('💥 Error al unirse a la sala:', err);
-      console.error('💥 Stack trace:', err.stack);
-      
-      // Determinar mensaje de error más específico
-      let errorTitle = '❌ Error al Unirse';
-      let errorMessage = 'No se pudo unir a la sala.';
-      
-      if (err.message.includes('completa') || err.message.includes('llena')) {
-        errorTitle = '🚫 Sala Completa';
-        errorMessage = 'Esta sala ya tiene 2 jugadores y está completa.\n\nBusca otra sala o crea una nueva.';
-      } else if (err.message.includes('no encontrada')) {
-        errorTitle = '🔍 Sala No Encontrada';
-        errorMessage = 'La sala ya no existe o fue eliminada.\n\nVerifica el código e inténtalo nuevamente.';
-      } else if (err.message.includes('conexión')) {
-        errorTitle = '🌐 Error de Conexión';
-        errorMessage = 'Hay problemas con tu conexión a internet.\n\nVerifica tu conexión e inténtalo nuevamente.';
-      } else {
-        errorMessage = err.message || 'Hubo un problema inesperado.\n\nInténtalo nuevamente o contacta soporte.';
-      }
-      
-      console.log('🚨 Mostrando alert de error:', errorTitle, errorMessage);
-      showCustomAlert(
-        errorTitle.replace(/❌|🚫|🔍|🌐/g, '').trim(),
-        errorMessage,
-        'error',
+      showErrorModal(
+        'Error',
+        err.message || 'Error desconocido al unirse a la sala',
         () => {
-          console.log('🏠 Navegando al Dashboard (error catch)...');
-          // Siempre regresar al dashboard en caso de error
-          navigation.navigate('Dashboard');
+          goBackToDashboard();
         }
       );
     } finally {
-      console.log('🔄 Finalizando handleJoinRoom, setIsJoining(false)');
       setIsJoining(false);
     }
   };
 
   /**
-   * Cancela la selección de sala y vuelve a la búsqueda
-   */
-  const handleCancelSelection = () => {
-    setFoundRoom(null);
-    setRoomCode('');
-  };
-  const handlePasteCode = async () => {
-    try {
-      // En React Native Web usamos navigator.clipboard
-      if (navigator.clipboard) {
-        const text = await navigator.clipboard.readText();
-        const formattedCode = formatRoomCode(text);
-        if (formattedCode.length > 0) {
-          setRoomCode(formattedCode);
-        }
-      }
-    } catch (err) {
-      console.log('No se pudo pegar desde el portapapeles');
-    }
-  };
-
-  /**
-   * Formatea la fecha de creación de manera más robusta
-   */
-  const formatCreatedDate = (dateString) => {
-    try {
-      if (!dateString) return 'Fecha no disponible';
-      
-      const date = new Date(dateString);
-      
-      // Verificar si la fecha es válida
-      if (isNaN(date.getTime())) {
-        return 'Fecha inválida';
-      }
-      
-      // Formatear fecha y hora en español
-      return date.toLocaleString('es-ES', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false // Usar formato 24 horas
-      });
-    } catch (error) {
-      console.error('Error al formatear fecha:', error);
-      return 'Error en fecha';
-    }
-  };
-
-  /**
-   * Limpia el input
+   * Limpia el input del código
    */
   const handleClearCode = () => {
     setRoomCode('');
   };
 
+  /**
+   * Maneja pegar código desde el portapapeles
+   */
+  const handlePasteCode = async () => {
+    try {
+      // En React Native Web
+      if (navigator.clipboard) {
+        const text = await navigator.clipboard.readText();
+        const formattedCode = formatRoomCode(text);
+        setRoomCode(formattedCode);
+      }
+    } catch (error) {
+      showWarningModal('Pegar', 'No se pudo pegar desde el portapapeles');
+    }
+  };
+
+  /**
+   * Formatea fecha para mostrar
+   */
+
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={goBackToDashboard}>
-            <Text style={styles.backButtonText}>← Volver</Text>
-          </TouchableOpacity>
-          
-          <Image 
+          <BackButton
+            onPress={goBackToDashboard}
+            text="← Volver"
+          />
+
+          <Image
             source={require('../../../assets/images/logoSinFondo.png')}
             style={styles.logo}
-            resizeMode="contain"
+            resizeMode='contain'
           />
-          
+
           <View style={styles.headerSpacer} />
         </View>
 
-        <View style={styles.content}>
+        {/* Contenido scrollable */}
+        <ScrollView 
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bounces={true}
+          overScrollMode="auto"
+        >
           {/* Título */}
           <View style={styles.titleContainer}>
-            <Text style={styles.title}>🤝 Unirse a Sala</Text>
+            <Text style={styles.title}>Unirse a Sala</Text>
             <Text style={styles.subtitle}>
-              {foundRoom ? 'Sala encontrada' : 'Ingresa el código de 6 dígitos de la sala a la que deseas unirte'}
+              Ingresa el código de 6 caracteres que te compartió el creador de
+              la sala
             </Text>
           </View>
 
-          {!foundRoom ? (
-            <>
-              {/* Input de código */}
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Código de la Sala</Text>
-                
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={styles.codeInput}
-                    value={roomCode}
-                    onChangeText={handleCodeChange}
-                    placeholder="Ej: F75A34"
-                    placeholderTextColor="#999"
-                    maxLength={6}
-                    autoCapitalize="characters"
-                    autoCorrect={false}
-                    autoFocus={true}
-                  />
-                  
-                  {roomCode.length > 0 && (
-                    <TouchableOpacity style={styles.clearButton} onPress={handleClearCode}>
-                      <Text style={styles.clearButtonText}>✕</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+          {/* Input del código */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Código de la Sala</Text>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                value={roomCode}
+                onChangeText={handleCodeChange}
+                placeholder='Ej: F75A34'
+                placeholderTextColor='#999'
+                maxLength={6}
+                autoCapitalize='characters'
+                autoCorrect={false}
+                keyboardType='default'
+              />
 
-                {/* Indicador de progreso */}
-                <View style={styles.progressContainer}>
-                  <Text style={styles.progressText}>
-                    {roomCode.length}/6 caracteres
-                  </Text>
-                  <View style={styles.progressBar}>
-                    <View 
-                      style={[
-                        styles.progressFill,
-                        { width: `${(roomCode.length / 6) * 100}%` }
-                      ]} 
-                    />
-                  </View>
-                </View>
+              {roomCode.length > 0 && (
+                <TouchableOpacity
+                  style={styles.clearButton}
+                  onPress={handleClearCode}
+                >
+                  <Text style={styles.clearButtonText}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
 
-                {/* Botones de acción rápida */}
-                <View style={styles.quickActionsContainer}>
-                  <TouchableOpacity style={styles.quickActionButton} onPress={handlePasteCode}>
-                    <Text style={styles.quickActionText}>📋 Pegar</Text>
-                  </TouchableOpacity>
-                </View>
+            {/* Indicador de progreso */}
+            <View style={styles.progressContainer}>
+              <Text style={styles.progressText}>
+                {roomCode.length}/6 caracteres
+              </Text>
+              <View style={styles.progressBar}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    { width: `${(roomCode.length / 6) * 100}%` },
+                  ]}
+                />
               </View>
+            </View>
 
-              {/* Información */}
-              <View style={styles.infoContainer}>
-                <Text style={styles.infoTitle}>💡 Información</Text>
-                <Text style={styles.infoText}>
-                  • El código debe tener exactamente 6 caracteres{'\n'}
-                  • Solo letras (A-Z) y números (0-9){'\n'}
-                  • Solo puedes unirte a salas en estado &quot;Esperando&quot;{'\n'}
-                  • Las salas solo pueden tener 2 jugadores máximo
-                </Text>
-              </View>
-
-              {/* Botón de búsqueda */}
-              <TouchableOpacity 
-                style={[
-                  styles.searchButton,
-                  (!isValidCode(roomCode) || isSearching || loading) && styles.searchButtonDisabled
-                ]}
-                onPress={handleSearchRoom}
-                disabled={!isValidCode(roomCode) || isSearching || loading}
+            {/* Botones de acción rápida */}
+            <View style={styles.quickActionsContainer}>
+              <TouchableOpacity
+                style={styles.quickActionButton}
+                onPress={handlePasteCode}
               >
-                <Text style={styles.searchButtonText}>
-                  {isSearching || loading ? '🔍 Buscando...' : '🔍 Buscar Sala'}
+                <Text style={styles.quickActionText}>📋 Pegar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Información */}
+          <View style={styles.infoContainer}>
+            <Text style={styles.infoTitle}>💡 Información</Text>
+            <Text style={styles.infoText}>
+              • El código debe tener exactamente 6 caracteres{'\n'}• Solo
+              contiene letras mayúsculas y números{'\n'}• El código es único
+              para cada sala{'\n'}• Asegúrate de escribirlo correctamente
+            </Text>
+          </View>
+
+          {/* Botón de búsqueda */}
+          <TouchableOpacity
+            style={[
+              styles.searchButton,
+              (!roomCode.trim() || !isValidRoomCode(roomCode)) &&
+                styles.searchButtonDisabled,
+            ]}
+            onPress={handleSearchRoom}
+            disabled={
+              !roomCode.trim() || !isValidRoomCode(roomCode) || isSearching
+            }
+          >
+            <Text style={styles.searchButtonText}>
+              {isSearching ? '🔍 Buscando...' : '🔍 Buscar Sala'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Sala encontrada */}
+          {foundRoom && (
+            <View style={styles.roomFoundContainer}>
+              <Text style={styles.roomFoundTitle}>✅ Sala Encontrada</Text>
+
+              <View style={styles.roomInfoContainer}>
+                <View style={styles.roomInfoRow}>
+                  <Text style={styles.roomInfoLabel}>Código:</Text>
+                  <Text style={styles.roomInfoValue}>{foundRoom.code}</Text>
+                </View>
+
+                <View style={styles.roomInfoRow}>
+                  <Text style={styles.roomInfoLabel}>Creada por:</Text>
+                  <Text style={styles.roomInfoValue}>
+                    {foundRoom.creatorName || 'Usuario desconocido'}
+                  </Text>
+                </View>
+
+                <View style={styles.roomInfoRow}>
+                  <Text style={styles.roomInfoLabel}>Estado:</Text>
+                  <Text style={styles.roomInfoValue}>
+                    {foundRoom.getStatusInSpanish()}
+                  </Text>
+                </View>
+
+                <View style={styles.roomInfoRow}>
+                  <Text style={styles.roomInfoLabel}>Creada:</Text>
+                  <Text style={styles.roomInfoValue}>
+                    {foundRoom.getFormattedCreatedAt()}
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.joinButton,
+                  isJoining && styles.joinButtonDisabled,
+                ]}
+                onPress={() => handleJoinRoom(foundRoom)}
+                disabled={isJoining}
+              >
+                <Text style={styles.joinButtonText}>
+                  {isJoining ? '🚀 Uniéndose...' : '🚀 Unirse a la Sala'}
                 </Text>
               </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              {/* Sala encontrada */}
-              <View style={styles.roomFoundContainer}>
-                <View style={styles.roomFoundHeader}>
-                  <Text style={styles.roomFoundIcon}>🎯</Text>
-                  <Text style={styles.roomFoundTitle}>¡Sala Encontrada!</Text>
-                </View>
-
-                <View style={styles.roomCard}>
-                  <View style={styles.roomCodeDisplay}>
-                    <Text style={styles.roomCodeLabel}>Código</Text>
-                    <Text style={styles.roomCodeValue}>{foundRoom.code}</Text>
-                  </View>
-
-                  <View style={styles.roomDetails}>
-                    <View style={styles.roomDetailRow}>
-                      <Text style={styles.roomDetailLabel}>Creador:</Text>
-                      <Text style={styles.roomDetailValue}>{foundRoom.getCreatorName()}</Text>
-                    </View>
-                    <View style={styles.roomDetailRow}>
-                      <Text style={styles.roomDetailLabel}>Estado:</Text>
-                      <View style={styles.statusBadge}>
-                        <Text style={styles.statusBadgeText}>{foundRoom.getStatusInSpanish()}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.roomDetailRow}>
-                      <Text style={styles.roomDetailLabel}>Jugadores:</Text>
-                      <Text style={styles.roomDetailValue}>1/2</Text>
-                    </View>
-                    <View style={styles.roomDetailRow}>
-                      <Text style={styles.roomDetailLabel}>Creada:</Text>
-                      <Text style={styles.roomDetailValue}>
-                        {formatCreatedDate(foundRoom.createdAt)}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Botones de acción */}
-                <View style={styles.actionButtonsContainer}>
-                  <TouchableOpacity 
-                    style={styles.cancelButton} 
-                    onPress={handleCancelSelection}
-                    disabled={isJoining}
-                  >
-                    <Text style={styles.cancelButtonText}>❌ Cancelar</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={[styles.joinButton, isJoining && styles.joinButtonDisabled]} 
-                    onPress={() => handleJoinRoom(foundRoom)}
-                    disabled={isJoining}
-                  >
-                    <Text style={styles.joinButtonText}>
-                      {isJoining ? '🔄 Uniéndose...' : '🎮 ¡Unirme a la Sala!'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </>
-          )}
-
-          {/* Estado de error */}
-          {error && !foundRoom && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>⚠️ {error}</Text>
             </View>
           )}
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
 
       {/* Modal personalizado */}
-      <Modal
-        animationType="fade"
-        transparent={true}
+      <CustomModal
         visible={modalVisible}
-        onRequestClose={handleModalClose}
-      >
-        <View style={styles.modalOverlay}>
-          <Animated.View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              {/* Icono */}
-              <View style={[
-                styles.modalIconContainer,
-                { backgroundColor: modalData.bgColor || '#D4F6D4' }
-              ]}>
-                <Text style={styles.modalIcon}>{modalData.icon}</Text>
-              </View>
-
-              {/* Título */}
-              <Text style={styles.modalTitle}>{modalData.title}</Text>
-
-              {/* Mensaje */}
-              <Text style={styles.modalMessage}>{modalData.message}</Text>
-
-              {/* Botón OK */}
-              <TouchableOpacity 
-                style={[
-                  styles.modalButton,
-                  { backgroundColor: modalData.buttonColor || '#28A745' }
-                ]}
-                onPress={handleModalClose}
-              >
-                <Text style={styles.modalButtonText}>OK</Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </View>
-      </Modal>
+        title={modalData.title}
+        message={modalData.message}
+        type={modalData.type}
+        onClose={hideModal}
+        confirmText={modalData.confirmText}
+      />
     </SafeAreaView>
   );
 };
@@ -605,7 +414,7 @@ const JoinRoomScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5', // NEUTRO
+    backgroundColor: '#F5F5F5',
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -614,46 +423,35 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
     paddingVertical: 16,
+    paddingTop: 40,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  backButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  backButtonText: {
-    color: '#6F4E37', // PRINCIPAL
-    fontSize: 16,
-    fontWeight: '600',
   },
   logo: {
     width: 40,
     height: 40,
   },
   headerSpacer: {
-    width: 60, // Para centrar el logo
+    width: 60,
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
     padding: 20,
+    paddingBottom: 60, // Más espacio al final para scroll cómodo en móviles
+    flexGrow: 1, // Permite que el contenido crezca si es necesario
   },
   titleContainer: {
     alignItems: 'center',
+    marginTop: 20,
     marginBottom: 30,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#6F4E37', // PRINCIPAL
+    color: '#6F4E37',
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -665,30 +463,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   inputContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 5,
+    marginBottom: 30,
   },
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6F4E37', // PRINCIPAL
+    color: '#6F4E37',
     marginBottom: 12,
   },
   inputWrapper: {
     position: 'relative',
   },
-  codeInput: {
-    backgroundColor: '#F8F9FA',
+  input: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
     borderRadius: 12,
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -696,61 +485,60 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     letterSpacing: 4,
-    color: '#6F4E37', // PRINCIPAL
-    borderWidth: 2,
-    borderColor: '#E5E5E5',
+    color: '#6F4E37',
   },
   clearButton: {
     position: 'absolute',
-    right: 12,
+    right: 15,
     top: '50%',
     transform: [{ translateY: -12 }],
+    backgroundColor: '#FF6B6B',
+    borderRadius: 12,
     width: 24,
     height: 24,
-    borderRadius: 12,
-    backgroundColor: '#6C757D',
     justifyContent: 'center',
     alignItems: 'center',
   },
   clearButtonText: {
-    color: '#FFFFFF',
+    color: 'white',
     fontSize: 12,
     fontWeight: 'bold',
   },
   progressContainer: {
-    marginTop: 12,
+    marginTop: 10,
+    alignItems: 'center',
   },
   progressText: {
     fontSize: 12,
     color: '#666',
-    textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 5,
   },
   progressBar: {
+    width: '100%',
     height: 4,
-    backgroundColor: '#E5E5E5',
+    backgroundColor: '#E0E0E0',
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#6F4E37', // PRINCIPAL
+    backgroundColor: '#6F4E37',
     borderRadius: 2,
   },
   quickActionsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 16,
+    marginTop: 15,
   },
   quickActionButton: {
-    backgroundColor: '#FFD166', // SECUNDARIO
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    backgroundColor: '#FFD166',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
   },
   quickActionText: {
-    color: '#6F4E37', // PRINCIPAL
-    fontSize: 12,
+    color: '#6F4E37',
+    fontSize: 14,
     fontWeight: '600',
   },
   infoContainer: {
@@ -758,19 +546,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
   },
   infoTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6F4E37', // PRINCIPAL
+    color: '#6F4E37',
     marginBottom: 12,
   },
   infoText: {
@@ -779,248 +559,66 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   searchButton: {
-    backgroundColor: '#6F4E37', // PRINCIPAL
+    backgroundColor: '#6F4E37',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 5,
+    marginBottom: 20,
   },
   searchButtonDisabled: {
-    backgroundColor: '#CCC',
-    shadowOpacity: 0,
-    elevation: 0,
+    backgroundColor: '#CCCCCC',
   },
   searchButtonText: {
-    color: '#F5F5F5',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
-  errorContainer: {
-    backgroundColor: '#FFF3F3',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#DC3545',
-  },
-  errorText: {
-    color: '#DC3545',
-    fontSize: 14,
-    textAlign: 'center',
-  },
   roomFoundContainer: {
-    flex: 1,
-  },
-  roomFoundHeader: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  roomFoundIcon: {
-    fontSize: 48,
-    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: '#28A745',
   },
   roomFoundTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#28A745', // Verde
+    color: '#28A745',
     textAlign: 'center',
-  },
-  roomCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
-    borderWidth: 2,
-    borderColor: '#28A745', // Verde
-  },
-  roomCodeDisplay: {
-    alignItems: 'center',
     marginBottom: 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
   },
-  roomCodeLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+  roomInfoContainer: {
+    marginBottom: 20,
   },
-  roomCodeValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#28A745', // Verde
-    backgroundColor: '#F8F9FA',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 12,
-    letterSpacing: 3,
-  },
-  roomDetails: {
-    gap: 12,
-  },
-  roomDetailRow: {
+  roomInfoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 8,
   },
-  roomDetailLabel: {
+  roomInfoLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6F4E37', // PRINCIPAL
+    color: '#6F4E37',
   },
-  roomDetailValue: {
+  roomInfoValue: {
     fontSize: 14,
-    color: '#333',
+    color: '#666',
     fontWeight: '500',
   },
-  statusBadge: {
-    backgroundColor: '#FFD166', // SECUNDARIO
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  statusBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6F4E37', // PRINCIPAL
-  },
-  actionButtonsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: '#6C757D', // Gris
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cancelButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   joinButton: {
-    flex: 2,
-    backgroundColor: '#28A745', // Verde
+    backgroundColor: '#28A745',
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 5,
   },
   joinButtonDisabled: {
-    backgroundColor: '#CCC',
-    shadowOpacity: 0,
-    elevation: 0,
+    backgroundColor: '#CCCCCC',
   },
   joinButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-
-  // Estilos del Modal personalizado
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 0,
-    maxWidth: 400,
-    width: '100%',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalContent: {
-    padding: 24,
-    alignItems: 'center',
-  },
-  modalIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalIcon: {
-    fontSize: 40,
-    textAlign: 'center',
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  modalMessage: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
-  },
-  modalButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-    borderRadius: 12,
-    minWidth: 120,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  modalButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: '600',
   },
 });
 

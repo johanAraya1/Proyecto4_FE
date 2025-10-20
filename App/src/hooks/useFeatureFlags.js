@@ -120,12 +120,13 @@ export const useFeatureFlags = () => {
         throw new Error('Nombre del feature flag requerido');
       }
 
-      const response = await featureFlagService.createFeatureFlag(featureFlagData);
+      const response =
+        await featureFlagService.createFeatureFlag(featureFlagData);
 
       if (response.success) {
         setCurrentFeatureFlag(response.featureFlag);
         setSuccessMessage(response.message);
-        setFeatureFlags(prev => [...prev, response.featureFlag]);
+        setFeatureFlags((prev) => [...prev, response.featureFlag]);
         return response.featureFlag;
       } else {
         throw new Error('Error al crear feature flag');
@@ -158,15 +159,16 @@ export const useFeatureFlags = () => {
         throw new Error('Datos de actualización requeridos');
       }
 
-      const response = await featureFlagService.updateFeatureFlag(id, updateData);
+      const response = await featureFlagService.updateFeatureFlag(
+        id,
+        updateData
+      );
 
       if (response.success) {
         setCurrentFeatureFlag(response.featureFlag);
         setSuccessMessage(response.message);
-        setFeatureFlags(prev => 
-          prev.map(flag => 
-            flag.id === id ? response.featureFlag : flag
-          )
+        setFeatureFlags((prev) =>
+          prev.map((flag) => (flag.id === id ? response.featureFlag : flag))
         );
         return response.featureFlag;
       } else {
@@ -200,10 +202,8 @@ export const useFeatureFlags = () => {
       if (response.success) {
         setCurrentFeatureFlag(response.featureFlag);
         setSuccessMessage(response.message);
-        setFeatureFlags(prev => 
-          prev.map(flag => 
-            flag.id === id ? response.featureFlag : flag
-          )
+        setFeatureFlags((prev) =>
+          prev.map((flag) => (flag.id === id ? response.featureFlag : flag))
         );
         return response.featureFlag;
       } else {
@@ -222,56 +222,65 @@ export const useFeatureFlags = () => {
    * @param {string} id - ID del feature flag a eliminar
    * @returns {Promise<boolean>} - true si se eliminó correctamente
    */
-  const deleteFeatureFlag = useCallback(async (id) => {
-    try {
-      setLoading(true);
-      setError(null);
-      setSuccessMessage(null);
+  const deleteFeatureFlag = useCallback(
+    async (id) => {
+      try {
+        setLoading(true);
+        setError(null);
+        setSuccessMessage(null);
 
-      if (!id) {
-        throw new Error('ID del feature flag requerido');
-      }
-
-      const response = await featureFlagService.deleteFeatureFlag(id);
-
-      if (response.success) {
-        setSuccessMessage(response.message);
-        setFeatureFlags(prev => prev.filter(flag => flag.id !== id));
-        
-        if (currentFeatureFlag?.id === id) {
-          setCurrentFeatureFlag(null);
+        if (!id) {
+          throw new Error('ID del feature flag requerido');
         }
-        
-        return true;
-      } else {
-        throw new Error('Error al eliminar feature flag');
+
+        const response = await featureFlagService.deleteFeatureFlag(id);
+
+        if (response.success) {
+          setSuccessMessage(response.message);
+          setFeatureFlags((prev) => prev.filter((flag) => flag.id !== id));
+
+          if (currentFeatureFlag?.id === id) {
+            setCurrentFeatureFlag(null);
+          }
+
+          return true;
+        } else {
+          throw new Error('Error al eliminar feature flag');
+        }
+      } catch (err) {
+        setError(err.message);
+        return false;
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError(err.message);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, [currentFeatureFlag]);
+    },
+    [currentFeatureFlag]
+  );
 
   /**
    * Verifica si un feature flag está habilitado por nombre
    * @param {string} name - Nombre del feature flag
    * @returns {boolean} - true si está habilitado, false en caso contrario
    */
-  const isFeatureEnabled = useCallback((name) => {
-    const flag = featureFlags.find(f => f.name === name);
-    return flag ? flag.isEnabled() : false;
-  }, [featureFlags]);
+  const isFeatureEnabled = useCallback(
+    (name) => {
+      const flag = featureFlags.find((f) => f.name === name);
+      return flag ? flag.isEnabled() : false;
+    },
+    [featureFlags]
+  );
 
   /**
    * Busca un feature flag en la lista actual por nombre
    * @param {string} name - Nombre del feature flag
    * @returns {Object|null} - Feature flag encontrado o null
    */
-  const getFeatureByName = useCallback((name) => {
-    return featureFlags.find(f => f.name === name) || null;
-  }, [featureFlags]);
+  const getFeatureByName = useCallback(
+    (name) => {
+      return featureFlags.find((f) => f.name === name) || null;
+    },
+    [featureFlags]
+  );
 
   // Funciones de utilidad para limpiar estados
   const clearMessages = useCallback(() => {
@@ -312,6 +321,6 @@ export const useFeatureFlags = () => {
     setFeatureFlags,
     setCurrentFeatureFlag,
     setError,
-    setSuccessMessage
+    setSuccessMessage,
   };
 };

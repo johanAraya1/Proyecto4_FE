@@ -21,7 +21,6 @@ export const useRanking = () => {
       setRanking(data);
     } catch (err) {
       setError(err.message);
-      console.error('Error fetching ranking:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -55,6 +54,6 @@ export const useRanking = () => {
     refreshing,
     refetch: fetchRanking,
     refresh: refreshRanking,
-    clearError
+    clearError,
   };
 };

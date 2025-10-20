@@ -7,12 +7,13 @@ import {
   SafeAreaView,
   Image,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../controllers/AuthContext';
 import { useRoom } from '../../hooks/useRoom';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
+import { CustomModal } from '../../components/common';
+import { useCustomModal } from '../../hooks/useCustomModal';
 import TelemetryDashboard from '../../components/TelemetryDashboard';
 import GlobalRanking from '../../components/GlobalRanking';
 
@@ -23,8 +24,17 @@ import GlobalRanking from '../../components/GlobalRanking';
 const DashboardScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
   const { createRoom, loading: roomLoading, error: roomError } = useRoom();
-  const { isFeatureEnabled, featureFlags, loading: featureFlagsLoading, refreshFeatureFlags } = useFeatureFlags();
+  const {
+    isFeatureEnabled,
+    featureFlags,
+    loading: featureFlagsLoading,
+    refreshFeatureFlags,
+  } = useFeatureFlags();
   const [activeTab, setActiveTab] = useState('ranking');
+
+  // Hook para modales personalizados
+  const { modalVisible, modalData, showErrorModal, showInfoModal, hideModal } =
+    useCustomModal();
 
   // Refresca feature flags cada vez que la pantalla recibe el foco
   useFocusEffect(
@@ -34,11 +44,15 @@ const DashboardScreen = ({ navigation }) => {
   );
 
   // Determina si el botón Deck debe mostrarse según el feature flag
-  const isDeckFeatureEnabled = !featureFlagsLoading && featureFlags.length > 0 && isFeatureEnabled('Deck');
+  const isDeckFeatureEnabled =
+    !featureFlagsLoading && featureFlags.length > 0 && isFeatureEnabled('Deck');
 
   // Restringe acceso a tabs de admin para usuarios no-administradores
   useEffect(() => {
-    if (user?.role !== 'admin' && (activeTab === 'telemetria' || activeTab === 'admin')) {
+    if (
+      user?.role !== 'admin' &&
+      (activeTab === 'telemetria' || activeTab === 'admin')
+    ) {
       setActiveTab('ranking');
     }
   }, [user, user?.role, activeTab]);
@@ -54,7 +68,7 @@ const DashboardScreen = ({ navigation }) => {
         navigation.replace('Login');
       }
     } catch (error) {
-      console.error('Error al cerrar sesión:', error);
+      // Error manejado silenciosamente o se puede usar un sistema de logging apropiado
     }
   };
 
@@ -83,7 +97,7 @@ const DashboardScreen = ({ navigation }) => {
    * Muestra modal de funcionalidad próximamente disponible
    */
   const handleViewDeck = () => {
-    Alert.alert('Visualizar Deck', 'Funcionalidad próximamente disponible');
+    showInfoModal('Visualizar Deck', 'Funcionalidad próximamente disponible');
   };
 
   /**
@@ -92,37 +106,47 @@ const DashboardScreen = ({ navigation }) => {
   const handleCreateRoom = async () => {
     try {
       if (!user?.id) {
-        Alert.alert('Error', 'No se pudo obtener la información del usuario');
+        showErrorModal(
+          'Error',
+          'No se pudo obtener la información del usuario'
+        );
         return;
       }
 
       const room = await createRoom(user.id);
-      
+
       if (room) {
         navigation.navigate('RoomCreated', { room });
       } else {
-        Alert.alert('Error', roomError || 'No se pudo crear la sala');
+        showErrorModal('Error', roomError || 'No se pudo crear la sala');
       }
     } catch (error) {
-      console.error('💥 Error al crear sala:', error);
-      Alert.alert('Error', `Hubo un problema al crear la sala: ${error.message}`);
+      showErrorModal(
+        'Error',
+        `Hubo un problema al crear la sala: ${error.message}`
+      );
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header con logo y usuario */}
         <View style={styles.header}>
-          <Image 
+          <Image
             source={require('../../../assets/images/logoSinFondo.png')}
             style={styles.logo}
-            resizeMode="contain"
+            resizeMode='contain'
           />
-          
+
           <View style={styles.userInfo}>
             <View style={styles.userAvatar}>
-              <Text style={styles.userInitial}>{user?.name?.charAt(0) || 'J'}</Text>
+              <Text style={styles.userInitial}>
+                {user?.name?.charAt(0) || 'J'}
+              </Text>
             </View>
             <View style={styles.userDetails}>
               <Text style={styles.userName}>{user?.name || 'Juan'}</Text>
@@ -134,7 +158,7 @@ const DashboardScreen = ({ navigation }) => {
               </View>
             </View>
           </View>
-          
+
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Text style={styles.logoutText}>🚪 Cerrar Sesión</Text>
           </TouchableOpacity>
@@ -142,31 +166,46 @@ const DashboardScreen = ({ navigation }) => {
 
         {/* Navegación por tabs */}
         <View style={styles.tabContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.tab, activeTab === 'ranking' && styles.activeTab]}
             onPress={() => setActiveTab('ranking')}
           >
-            <Text style={[styles.tabText, activeTab === 'ranking' && styles.activeTabText]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'ranking' && styles.activeTabText,
+              ]}
+            >
               🏆 Ranking Global
             </Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={[styles.tab, activeTab === 'ordenes' && styles.activeTab]}
             onPress={() => setActiveTab('ordenes')}
           >
-            <Text style={[styles.tabText, activeTab === 'ordenes' && styles.activeTabText]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'ordenes' && styles.activeTabText,
+              ]}
+            >
               📝 Órdenes Activas
             </Text>
           </TouchableOpacity>
-          
+
           {/* Solo mostrar Administración si el usuario es admin */}
           {user?.role === 'admin' && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.tab, activeTab === 'admin' && styles.activeTab]}
               onPress={() => setActiveTab('admin')}
             >
-              <Text style={[styles.tabText, activeTab === 'admin' && styles.activeTabText]}>
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === 'admin' && styles.activeTabText,
+                ]}
+              >
                 ⚙️ Administración
               </Text>
             </TouchableOpacity>
@@ -178,8 +217,8 @@ const DashboardScreen = ({ navigation }) => {
           <View style={styles.content}>
             {/* Botones de salas */}
             <View style={styles.roomButtonsContainer}>
-              <TouchableOpacity 
-                style={[styles.roomButton, styles.createRoomButton]} 
+              <TouchableOpacity
+                style={[styles.roomButton, styles.createRoomButton]}
                 onPress={handleCreateRoom}
                 disabled={roomLoading}
               >
@@ -187,31 +226,31 @@ const DashboardScreen = ({ navigation }) => {
                   {roomLoading ? '🔄 Creando...' : '🎮 Crear Sala'}
                 </Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.roomButton, styles.joinRoomButton]} 
+
+              <TouchableOpacity
+                style={[styles.roomButton, styles.joinRoomButton]}
                 onPress={handleJoinRoom}
               >
                 <Text style={styles.joinRoomText}>🤝 Unirme a Sala</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.roomButton, styles.viewRoomsButton]} 
+
+              <TouchableOpacity
+                style={[styles.roomButton, styles.viewRoomsButton]}
                 onPress={handleViewActiveRooms}
               >
                 <Text style={styles.viewRoomsText}>📋 Ver Salas Activas</Text>
               </TouchableOpacity>
-              
+
               {isDeckFeatureEnabled && (
-                <TouchableOpacity 
-                  style={[styles.roomButton, styles.viewDeckButton]} 
+                <TouchableOpacity
+                  style={[styles.roomButton, styles.viewDeckButton]}
                   onPress={handleViewDeck}
                 >
                   <Text style={styles.viewDeckText}>🃏 Visualizar Deck</Text>
                 </TouchableOpacity>
               )}
             </View>
-            
+
             <GlobalRanking />
           </View>
         )}
@@ -220,14 +259,14 @@ const DashboardScreen = ({ navigation }) => {
         {activeTab === 'ordenes' && (
           <View style={styles.content}>
             <Text style={styles.sectionTitle}>Órdenes Activas</Text>
-            
+
             {/* Orden 1: Caramel Macchiato */}
             <View style={styles.orderCard}>
               <View style={styles.orderHeader}>
                 <Text style={styles.orderName}>Caramel Macchiato</Text>
                 <Text style={styles.orderTime}>2:40</Text>
               </View>
-              
+
               <View style={styles.orderIngredients}>
                 <View style={styles.ingredient}>
                   <Text style={styles.ingredientName}>Café</Text>
@@ -239,17 +278,17 @@ const DashboardScreen = ({ navigation }) => {
                   <Text style={styles.ingredientName}>Agua</Text>
                 </View>
               </View>
-              
+
               <Text style={styles.rewardText}>Recompensa: 50 pts</Text>
             </View>
-            
+
             {/* Orden 2: Classic Latte */}
             <View style={styles.orderCard}>
               <View style={styles.orderHeader}>
                 <Text style={styles.orderName}>Classic Latte</Text>
                 <Text style={styles.orderTime}>1:30</Text>
               </View>
-              
+
               <View style={styles.orderIngredients}>
                 <View style={styles.ingredient}>
                   <Text style={styles.ingredientName}>Café</Text>
@@ -258,71 +297,87 @@ const DashboardScreen = ({ navigation }) => {
                   <Text style={styles.ingredientName}>Leche</Text>
                 </View>
               </View>
-              
+
               <Text style={styles.rewardText}>Recompensa: 30 pts</Text>
             </View>
-            
+
             {/* Botón Go to Ingredient Board */}
             <TouchableOpacity style={styles.ingredientBoardButton}>
-              <Text style={styles.ingredientBoardText}>📋 Ir al Tablero de Ingredientes</Text>
+              <Text style={styles.ingredientBoardText}>
+                📋 Ir al Tablero de Ingredientes
+              </Text>
             </TouchableOpacity>
           </View>
         )}
-        
+
         {/* Contenido placeholder para otras tabs */}
         {activeTab === 'admin' && user?.role === 'admin' && (
           <View style={styles.content}>
             <Text style={styles.sectionTitle}>⚙️ Administración</Text>
-            
+
             {/* Botones de administración */}
             <View style={styles.adminButtonsContainer}>
-              <TouchableOpacity 
-                style={[styles.adminButton, styles.featureFlagsButton]} 
+              <TouchableOpacity
+                style={[styles.adminButton, styles.featureFlagsButton]}
                 onPress={handleFeatureFlags}
               >
                 <View style={styles.adminButtonContent}>
                   <Text style={styles.adminButtonIcon}>🚩</Text>
                   <View style={styles.adminButtonText}>
                     <Text style={styles.adminButtonTitle}>Feature Flags</Text>
-                    <Text style={styles.adminButtonSubtitle}>Gestiona las características del sistema</Text>
+                    <Text style={styles.adminButtonSubtitle}>
+                      Gestiona las características del sistema
+                    </Text>
                   </View>
                   <Text style={styles.adminButtonArrow}>▶</Text>
                 </View>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[styles.adminButton, styles.usersButton]}
                 onPress={() => {
-                  Alert.alert('Próximamente', 'La gestión de usuarios estará disponible pronto');
+                  showInfoModal(
+                    'Próximamente',
+                    'La gestión de usuarios estará disponible pronto'
+                  );
                 }}
               >
                 <View style={styles.adminButtonContent}>
                   <Text style={styles.adminButtonIcon}>👥</Text>
                   <View style={styles.adminButtonText}>
-                    <Text style={styles.adminButtonTitle}>Gestión de Usuarios</Text>
-                    <Text style={styles.adminButtonSubtitle}>Administra cuentas y permisos</Text>
+                    <Text style={styles.adminButtonTitle}>
+                      Gestión de Usuarios
+                    </Text>
+                    <Text style={styles.adminButtonSubtitle}>
+                      Administra cuentas y permisos
+                    </Text>
                   </View>
                   <Text style={styles.adminButtonArrow}>▶</Text>
                 </View>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[styles.adminButton, styles.settingsButton]}
                 onPress={() => {
-                  Alert.alert('Próximamente', 'La configuración estará disponible pronto');
+                  showInfoModal(
+                    'Próximamente',
+                    'La configuración estará disponible pronto'
+                  );
                 }}
               >
                 <View style={styles.adminButtonContent}>
                   <Text style={styles.adminButtonIcon}>⚙️</Text>
                   <View style={styles.adminButtonText}>
                     <Text style={styles.adminButtonTitle}>Configuración</Text>
-                    <Text style={styles.adminButtonSubtitle}>Ajustes generales del sistema</Text>
+                    <Text style={styles.adminButtonSubtitle}>
+                      Ajustes generales del sistema
+                    </Text>
                   </View>
                   <Text style={styles.adminButtonArrow}>▶</Text>
                 </View>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[styles.adminButton, styles.telemetryButton]}
                 onPress={() => setActiveTab('telemetria')}
               >
@@ -330,7 +385,9 @@ const DashboardScreen = ({ navigation }) => {
                   <Text style={styles.adminButtonIcon}>📊</Text>
                   <View style={styles.adminButtonText}>
                     <Text style={styles.adminButtonTitle}>Telemetría</Text>
-                    <Text style={styles.adminButtonSubtitle}>Ajustes generales del sistema</Text>
+                    <Text style={styles.adminButtonSubtitle}>
+                      Ajustes generales del sistema
+                    </Text>
                   </View>
                   <Text style={styles.adminButtonArrow}>▶</Text>
                 </View>
@@ -338,12 +395,22 @@ const DashboardScreen = ({ navigation }) => {
             </View>
           </View>
         )}
-        
+
         {/* Contenido de Telemetría */}
         {activeTab === 'telemetria' && user?.role === 'admin' && (
           <TelemetryDashboard />
         )}
       </ScrollView>
+
+      {/* Modal personalizado */}
+      <CustomModal
+        visible={modalVisible}
+        title={modalData.title}
+        message={modalData.message}
+        type={modalData.type}
+        onClose={hideModal}
+        confirmText={modalData.confirmText}
+      />
     </SafeAreaView>
   );
 };
@@ -620,7 +687,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  
+
   // Estilos para los botones de administración
   adminButtonsContainer: {
     gap: 12,
@@ -676,7 +743,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#CCC',
   },
-  
+
   // Estilos para la nueva organización de administración
   adminSection: {
     marginBottom: 20,

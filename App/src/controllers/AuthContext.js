@@ -12,11 +12,9 @@ const AuthContext = createContext(undefined);
  */
 export const AuthProvider = ({ children }) => {
   const authState = useAuthController();
-  
+
   return (
-    <AuthContext.Provider value={authState}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={authState}>{children}</AuthContext.Provider>
   );
 };
 
@@ -26,11 +24,11 @@ export const AuthProvider = ({ children }) => {
  */
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  
+
   if (context === undefined) {
     throw new Error('useAuth debe ser usado dentro de un AuthProvider');
   }
-  
+
   return context;
 };
 
