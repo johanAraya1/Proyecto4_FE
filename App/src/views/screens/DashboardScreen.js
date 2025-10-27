@@ -202,6 +202,21 @@ const DashboardScreen = ({ navigation }) => {
                 <Text style={styles.viewRoomsText}>📋 Ver Salas Activas</Text>
               </TouchableOpacity>
               
+              {/* Acceso rápido a Amigos */}
+              <TouchableOpacity 
+                style={[styles.roomButton, styles.createRoomButton]} 
+                onPress={() => navigation.navigate('Friends')}
+              >
+                <Text style={styles.createRoomText}>👥 Amigos</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.roomButton, styles.joinRoomButton]} 
+                onPress={() => navigation.navigate('FriendRequests')}
+              >
+                <Text style={styles.joinRoomText}>📨 Solicitudes</Text>
+              </TouchableOpacity>
+              
               {isDeckFeatureEnabled && (
                 <TouchableOpacity 
                   style={[styles.roomButton, styles.viewDeckButton]} 

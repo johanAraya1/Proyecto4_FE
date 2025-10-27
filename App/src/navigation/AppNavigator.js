@@ -6,6 +6,8 @@ import RoomCreatedScreen from '../views/screens/RoomCreatedScreen';
 import ActiveRoomsScreen from '../views/screens/ActiveRoomsScreen';
 import JoinRoomScreen from '../views/screens/JoinRoomScreen';
 import FeatureFlagsScreen from '../views/screens/FeatureFlagsScreen';
+import FriendsScreen from '../views/screens/FriendsScreen';
+import FriendRequestsScreen from '../views/screens/FriendRequestsScreen';
 
 // Crear instancia del stack navigator
 const Stack = createStackNavigator();
@@ -114,6 +116,30 @@ const AppNavigator = () => {
             fontWeight: 'bold',
           },
           headerShown: false, // Ocultamos el header porque la pantalla tiene su propio header personalizado
+        }}
+      />
+
+      {/* Pantalla de Amigos */}
+      <Stack.Screen
+        name="Friends"
+        component={FriendsScreen}
+        options={{
+          title: 'Amigos',
+          headerStyle: { backgroundColor: '#6F4E37' },
+          headerTintColor: '#FFFFFF',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
+
+      {/* Pantalla de Solicitudes de Amistad */}
+      <Stack.Screen
+        name="FriendRequests"
+        component={FriendRequestsScreen}
+        options={{
+          title: 'Solicitudes',
+          headerStyle: { backgroundColor: '#6F4E37' },
+          headerTintColor: '#FFFFFF',
+          headerTitleStyle: { fontWeight: 'bold' },
         }}
       />
     </Stack.Navigator>

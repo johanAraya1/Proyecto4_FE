@@ -200,6 +200,14 @@ const ActiveRoomsScreen = ({ navigation }) => {
         <Text style={styles.subtitle}>
           {userRooms.length} {userRooms.length === 1 ? 'sala' : 'salas'}
         </Text>
+        <View style={styles.actionsRow}>
+          <TouchableOpacity style={styles.smallButton} onPress={() => navigation.navigate('Friends')}>
+            <Text style={styles.smallButtonText}>👥 Amigos</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.smallButton, styles.ghostButton]} onPress={() => navigation.navigate('FriendRequests')}>
+            <Text style={[styles.smallButtonText, styles.ghostButtonText]}>📨 Solicitudes</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {error ? (
@@ -289,6 +297,29 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: '#666',
+  },
+  actionsRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+  },
+  smallButton: {
+    backgroundColor: '#6F4E37',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  ghostButton: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#6F4E37',
+  },
+  smallButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  ghostButtonText: {
+    color: '#6F4E37',
   },
   listContainer: {
     padding: 16,
