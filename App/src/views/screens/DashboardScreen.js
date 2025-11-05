@@ -15,6 +15,7 @@ import { useRoom } from '../../hooks/useRoom';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import TelemetryDashboard from '../../components/TelemetryDashboard';
 import GlobalRanking from '../../components/GlobalRanking';
+import FriendsRanking from '../../components/FriendsRanking';
 
 /**
  * Pantalla principal del dashboard - Hub central de la aplicación
@@ -152,11 +153,11 @@ const DashboardScreen = ({ navigation }) => {
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={[styles.tab, activeTab === 'ordenes' && styles.activeTab]}
-            onPress={() => setActiveTab('ordenes')}
+            style={[styles.tab, activeTab === 'amigos' && styles.activeTab]}
+            onPress={() => setActiveTab('amigos')}
           >
-            <Text style={[styles.tabText, activeTab === 'ordenes' && styles.activeTabText]}>
-              📝 Órdenes Activas
+            <Text style={[styles.tabText, activeTab === 'amigos' && styles.activeTabText]}>
+              🏆 Ranking Amigos
             </Text>
           </TouchableOpacity>
           
@@ -202,21 +203,6 @@ const DashboardScreen = ({ navigation }) => {
                 <Text style={styles.viewRoomsText}>📋 Ver Salas Activas</Text>
               </TouchableOpacity>
               
-              {/* Acceso rápido a Amigos */}
-              <TouchableOpacity 
-                style={[styles.roomButton, styles.createRoomButton]} 
-                onPress={() => navigation.navigate('Friends')}
-              >
-                <Text style={styles.createRoomText}>👥 Amigos</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.roomButton, styles.joinRoomButton]} 
-                onPress={() => navigation.navigate('FriendRequests')}
-              >
-                <Text style={styles.joinRoomText}>📨 Solicitudes</Text>
-              </TouchableOpacity>
-              
               {isDeckFeatureEnabled && (
                 <TouchableOpacity 
                   style={[styles.roomButton, styles.viewDeckButton]} 
@@ -231,56 +217,28 @@ const DashboardScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* Contenido de Órdenes Activas */}
-        {activeTab === 'ordenes' && (
+        {/* Contenido del Ranking de Amigos */}
+        {activeTab === 'amigos' && (
           <View style={styles.content}>
-            <Text style={styles.sectionTitle}>Órdenes Activas</Text>
-            
-            {/* Orden 1: Caramel Macchiato */}
-            <View style={styles.orderCard}>
-              <View style={styles.orderHeader}>
-                <Text style={styles.orderName}>Caramel Macchiato</Text>
-                <Text style={styles.orderTime}>2:40</Text>
-              </View>
-              
-              <View style={styles.orderIngredients}>
-                <View style={styles.ingredient}>
-                  <Text style={styles.ingredientName}>Café</Text>
-                </View>
-                <View style={styles.ingredient}>
-                  <Text style={styles.ingredientName}>Leche</Text>
-                </View>
-                <View style={styles.ingredient}>
-                  <Text style={styles.ingredientName}>Agua</Text>
-                </View>
-              </View>
-              
-              <Text style={styles.rewardText}>Recompensa: 50 pts</Text>
+            {/* Botones de gestión de amigos */}
+            <View style={styles.friendButtonsContainer}>
+              <TouchableOpacity 
+                style={[styles.roomButton, styles.createRoomButton]} 
+                onPress={() => navigation.navigate('Friends')}
+              >
+                <Text style={styles.createRoomText}>👥 Gestionar Amigos</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.roomButton, styles.joinRoomButton]} 
+                onPress={() => navigation.navigate('FriendRequests')}
+              >
+                <Text style={styles.joinRoomText}>📨 Solicitudes de Amistad</Text>
+              </TouchableOpacity>
             </View>
             
-            {/* Orden 2: Classic Latte */}
-            <View style={styles.orderCard}>
-              <View style={styles.orderHeader}>
-                <Text style={styles.orderName}>Classic Latte</Text>
-                <Text style={styles.orderTime}>1:30</Text>
-              </View>
-              
-              <View style={styles.orderIngredients}>
-                <View style={styles.ingredient}>
-                  <Text style={styles.ingredientName}>Café</Text>
-                </View>
-                <View style={styles.ingredient}>
-                  <Text style={styles.ingredientName}>Leche</Text>
-                </View>
-              </View>
-              
-              <Text style={styles.rewardText}>Recompensa: 30 pts</Text>
-            </View>
-            
-            {/* Botón Go to Ingredient Board */}
-            <TouchableOpacity style={styles.ingredientBoardButton}>
-              <Text style={styles.ingredientBoardText}>📋 Ir al Tablero de Ingredientes</Text>
-            </TouchableOpacity>
+            {/* Ranking de Amigos */}
+            <FriendsRanking />
           </View>
         )}
         
@@ -497,69 +455,6 @@ const styles = StyleSheet.create({
     color: '#6F4E37', // PRINCIPAL
     marginBottom: 16,
   },
-  orderCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  orderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  orderName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6F4E37', // PRINCIPAL
-  },
-  orderTime: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFD166', // SECUNDARIO
-  },
-  orderIngredients: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  ingredient: {
-    backgroundColor: '#F5F5F5',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-  },
-  ingredientName: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
-  },
-  rewardText: {
-    fontSize: 12,
-    color: '#888',
-    fontStyle: 'italic',
-  },
-  ingredientBoardButton: {
-    backgroundColor: '#6F4E37', // PRINCIPAL
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  ingredientBoardText: {
-    color: '#F5F5F5',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   placeholderContent: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -590,6 +485,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   roomButtonsContainer: {
+    marginBottom: 20,
+  },
+  friendButtonsContainer: {
     marginBottom: 20,
   },
   roomButton: {
