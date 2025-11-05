@@ -1,0 +1,33 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url "https://jitpack.io" }
+    }
+}
+
+rootProject.name = 'CoffeeCenfo App'
+
+apply from: new File(["node", "--print", "require.resolve('expo/package.json')"].execute(null, rootDir).text.trim(), "../scripts/autolinking.gradle")
+apply from: new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json')"].execute(null, rootDir).text.trim(), "../react.gradle")
+
+include ':app'
+
+// Incluye los módulos necesarios
+include ':react-native-safe-area-context'
+project(':react-native-safe-area-context').projectDir = new File(['node', '--print', "require.resolve('react-native-safe-area-context/package.json')"].execute(null, rootDir).text.trim(), '../android')
+
+include ':react-native-screens'
+project(':react-native-screens').projectDir = new File(['node', '--print', "require.resolve('react-native-screens/package.json')"].execute(null, rootDir).text.trim(), '../android')
+
+include ':react-native-gesture-handler'
+project(':react-native-gesture-handler').projectDir = new File(['node', '--print', "require.resolve('react-native-gesture-handler/package.json')"].execute(null, rootDir).text.trim(), '../android')
