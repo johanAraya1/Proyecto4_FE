@@ -48,6 +48,7 @@ const AppNavigator = () => {
           title: 'Dashboard',
           headerLeft: null, // Evitar que puedan regresar al login
           gestureEnabled: false, // Deshabilitar gesto de volver en iOS
+          headerShown: false, // ⚡ Ocultar header azul en todas las plataformas
         }}
       />
 

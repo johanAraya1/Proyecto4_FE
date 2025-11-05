@@ -7,18 +7,15 @@ const GameOrdersSection = ({ player1Order, player2Order, currentTurn }) => {
   const { width } = Dimensions.get('window');
   const isMobile = width < 768;
 
-  console.log('GameOrdersSection Props:', { player1Order, player2Order, currentTurn });
-
-  // Debug para verificar si las órdenes son válidas
+  // Validar si las órdenes son válidas
   const validateOrder = (order) => {
     if (!order) return false;
     return order.name && Array.isArray(order.ingredients) && typeof order.points === 'number';
   };
 
-  console.log('Órdenes válidas:', {
-    player1: validateOrder(player1Order),
-    player2: validateOrder(player2Order)
-  });
+  // Solo mostrar órdenes válidas
+  const validPlayer1Order = validateOrder(player1Order) ? player1Order : null;
+  const validPlayer2Order = validateOrder(player2Order) ? player2Order : null;
 
   return (
     <View 
@@ -39,7 +36,7 @@ const GameOrdersSection = ({ player1Order, player2Order, currentTurn }) => {
         <OrderCard 
           testID="player1-order-card"
           data-testid="player1-order-card"
-          order={player1Order} 
+          order={validPlayer1Order} 
           style={[
             styles.orderCard,
             isMobile && styles.orderCardMobile,
@@ -60,7 +57,7 @@ const GameOrdersSection = ({ player1Order, player2Order, currentTurn }) => {
         <OrderCard 
           testID="player2-order-card"
           data-testid="player2-order-card"
-          order={player2Order}
+          order={validPlayer2Order}
           style={[
             styles.orderCard,
             isMobile && styles.orderCardMobile,

@@ -8,3 +8,5 @@ export { default as HeaderWithLogo } from './HeaderWithLogo';
 export { default as LoadingSpinner } from './LoadingSpinner';
 export { default as ErrorMessage } from './ErrorMessage';
 export { default as CustomModal } from './CustomModal';
+export { default as FormInput } from './FormInput';
+export { default as PrimaryButton } from './PrimaryButton';

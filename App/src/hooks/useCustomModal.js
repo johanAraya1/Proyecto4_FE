@@ -12,6 +12,9 @@ export const useCustomModal = () => {
     type: 'success', // 'success' | 'error' | 'warning' | 'info'
     onConfirm: null,
     confirmText: 'OK',
+    onClose: null,
+    showCancel: false,
+    cancelText: 'Cancelar',
   });
 
   /**
@@ -21,13 +24,17 @@ export const useCustomModal = () => {
    * @param {string} type - Tipo del modal ('success', 'error', 'warning', 'info')
    * @param {Function} onConfirm - Callback a ejecutar al confirmar
    * @param {string} confirmText - Texto del botón de confirmación
+   * @param {Function} onClose - Callback a ejecutar al cerrar/cancelar
+   * @param {string} cancelText - Texto del botón de cancelar
    */
   const showModal = (
     title,
     message,
     type = 'success',
     onConfirm = null,
-    confirmText = 'OK'
+    confirmText = 'OK',
+    onClose = null,
+    cancelText = 'Cancelar'
   ) => {
     setModalData({
       title,
@@ -35,6 +42,9 @@ export const useCustomModal = () => {
       type,
       onConfirm,
       confirmText,
+      onClose,
+      showCancel: onClose !== null,
+      cancelText,
     });
     setModalVisible(true);
   };
@@ -85,14 +95,7 @@ export const useCustomModal = () => {
   const hideModal = () => {
     setModalVisible(false);
 
-    // Ejecutar callback si existe
-    if (modalData.onConfirm) {
-      setTimeout(() => {
-        modalData.onConfirm();
-      }, 300); // Pequeña pausa para la animación
-    }
-
-    // Limpiar datos del modal
+    // Limpiar datos del modal después de la animación
     setTimeout(() => {
       setModalData({
         title: '',
@@ -100,6 +103,9 @@ export const useCustomModal = () => {
         type: 'success',
         onConfirm: null,
         confirmText: 'OK',
+        onClose: null,
+        showCancel: false,
+        cancelText: 'Cancelar',
       });
     }, 300);
   };

@@ -2,24 +2,29 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  ActivityIndicator,
   Image,
-  Dimensions,
 } from 'react-native';
 import { useAuth } from '../../controllers/AuthContext';
-import { CustomModal } from '../../components/common';
+import { CustomModal, FormInput, PrimaryButton } from '../../components/common';
 import { useCustomModal } from '../../hooks/useCustomModal';
 import GoogleLogo from '../../components/GoogleLogo';
+import styles from '../../styles/LoginScreen.styles';
+
+// Constantes de configuración
+const FORM_CONFIG = {
+  EMAIL_MIN_LENGTH: 3,
+  PASSWORD_MIN_LENGTH: 6,
+  MAX_FORM_WIDTH: 400,
+};
+
+const EMAIL_REGEX = /\S+@\S+\.\S+/;
 
 /**
- * Pantalla de Login - Parte "Vista" de la arquitectura MVC
- * Permite al usuario ingresar sus credenciales para autenticarse
+ * Pantalla de Login 
  */
 const LoginScreen = ({ navigation }) => {
   // Estados locales para los campos de entrada
@@ -66,23 +71,41 @@ const LoginScreen = ({ navigation }) => {
   };
 
   /**
+   * Valida un campo de email
+   * @param {string} value - Email a validar
+   * @returns {string|null} - Mensaje de error o null si es válido
+   */
+  const validateEmail = (value) => {
+    if (!value.trim()) return 'El email es requerido';
+    if (!EMAIL_REGEX.test(value)) return 'El formato del email no es válido';
+    return null;
+  };
+
+  /**
+   * Valida un campo de contraseña
+   * @param {string} value - Contraseña a validar
+   * @returns {string|null} - Mensaje de error o null si es válido
+   */
+  const validatePassword = (value) => {
+    if (!value.trim()) return 'La contraseña es requerida';
+    if (value.length < FORM_CONFIG.PASSWORD_MIN_LENGTH) {
+      return `La contraseña debe tener al menos ${FORM_CONFIG.PASSWORD_MIN_LENGTH} caracteres`;
+    }
+    return null;
+  };
+
+  /**
    * Valida los campos del formulario
    * @returns {Object} - Objeto con errores de validación
    */
   const validateForm = () => {
     const errors = {};
-
-    if (!email.trim()) {
-      errors.email = 'El email es requerido';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      errors.email = 'El formato del email no es válido';
-    }
-
-    if (!password.trim()) {
-      errors.password = 'La contraseña es requerida';
-    } else if (password.length < 6) {
-      errors.password = 'La contraseña debe tener al menos 6 caracteres';
-    }
+    
+    const emailError = validateEmail(email);
+    const passwordError = validatePassword(password);
+    
+    if (emailError) errors.email = emailError;
+    if (passwordError) errors.password = passwordError;
 
     return errors;
   };
@@ -134,33 +157,27 @@ const LoginScreen = ({ navigation }) => {
           <Text style={styles.tagline}>Conviértete en el mejor barista</Text>
 
           {/* Campo de Email */}
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder='Email'
-              placeholderTextColor='#999'
-              value={email}
-              onChangeText={handleEmailChange}
-              keyboardType='email-address'
-              autoCapitalize='none'
-              autoComplete='email'
-              editable={!isLoading}
-            />
-          </View>
+          <FormInput
+            placeholder='Email'
+            value={email}
+            onChangeText={handleEmailChange}
+            keyboardType='email-address'
+            autoCapitalize='none'
+            autoComplete='email'
+            editable={!isLoading}
+            error={fieldErrors.email}
+          />
 
           {/* Campo de Contraseña */}
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder='Password'
-              placeholderTextColor='#999'
-              value={password}
-              onChangeText={handlePasswordChange}
-              secureTextEntry
-              autoComplete='password'
-              editable={!isLoading}
-            />
-          </View>
+          <FormInput
+            placeholder='Password'
+            value={password}
+            onChangeText={handlePasswordChange}
+            secureTextEntry
+            autoComplete='password'
+            editable={!isLoading}
+            error={fieldErrors.password}
+          />
 
           {/* Enlace de contraseña olvidada */}
           <TouchableOpacity style={styles.forgotPasswordContainer}>
@@ -177,20 +194,12 @@ const LoginScreen = ({ navigation }) => {
           )}
 
           {/* Botón de Login */}
-          <TouchableOpacity
-            style={[
-              styles.loginButton,
-              isLoading && styles.loginButtonDisabled,
-            ]}
+          <PrimaryButton
+            title='Ingresar'
             onPress={handleLogin}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color='#F5F5F5' size='small' />
-            ) : (
-              <Text style={styles.loginButtonText}>Ingresar</Text>
-            )}
-          </TouchableOpacity>
+            loading={isLoading}
+            style={styles.loginButton}
+          />
 
           {/* Separador "O ingresa con" */}
           <Text style={styles.separatorText}>O ingresa con</Text>
@@ -225,162 +234,5 @@ const LoginScreen = ({ navigation }) => {
     </KeyboardAvoidingView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F5', // NEUTRO
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    alignItems: 'center', // Centrar en web
-  },
-  formContainer: {
-    backgroundColor: '#FFFFFF',
-    padding: 32,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
-    alignItems: 'center',
-    width:
-      Platform.OS === 'web'
-        ? Math.min(400, Dimensions.get('window').width - 48)
-        : '100%',
-    maxWidth: Platform.OS === 'web' ? 400 : '100%',
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  logoImage: {
-    width: 100,
-    height: 100,
-    marginBottom: 12,
-  },
-  brandName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#6F4E37', // PRINCIPAL
-    marginBottom: 8,
-  },
-  tagline: {
-    fontSize: 16,
-    color: '#FFD166', // SECUNDARIO
-    textAlign: 'center',
-    marginBottom: 32,
-    fontWeight: '500',
-  },
-  inputContainer: {
-    width: '100%',
-    marginBottom: 16,
-  },
-  input: {
-    width: '100%',
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    backgroundColor: '#FFFFFF',
-    color: '#333',
-  },
-  forgotPasswordContainer: {
-    alignSelf: 'flex-end',
-    marginBottom: 24,
-  },
-  forgotPasswordText: {
-    color: '#FFD166', // SECUNDARIO
-    fontSize: 14,
-    textDecorationLine: 'underline',
-  },
-  errorContainer: {
-    width: '100%',
-    marginBottom: 16,
-  },
-  errorText: {
-    color: '#E74C3C',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  loginButton: {
-    width: '100%',
-    height: 50,
-    backgroundColor: '#6F4E37', // PRINCIPAL
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  loginButtonDisabled: {
-    backgroundColor: '#B8A196',
-  },
-  loginButtonText: {
-    color: '#F5F5F5', // NEUTRO
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  separatorText: {
-    color: '#666',
-    fontSize: 14,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  googleButton: {
-    width: '100%',
-    height: 50,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#DADCE0',
-    borderRadius: 4,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  googleIconContainer: {
-    width: 18,
-    height: 18,
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  googleButtonText: {
-    color: '#3c4043',
-    fontSize: 16,
-    fontWeight: 'normal',
-  },
-  registerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  registerText: {
-    color: '#666',
-    fontSize: 14,
-  },
-  registerLink: {
-    color: '#FFD166', // SECUNDARIO
-    fontSize: 14,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
-});
 
 export default LoginScreen;

@@ -2,23 +2,26 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   SafeAreaView,
   Image,
   FlatList,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../../controllers/AuthContext';
 import { useRoom } from '../../hooks/useRoom';
 import { CustomModal, BackButton } from '../../components/common';
 import { useCustomModal } from '../../hooks/useCustomModal';
 import { copyToClipboard } from '../../utils/clipboard';
+import { roomService } from '../../services/roomService';
+import styles from '../../styles/ActiveRoomsScreen.styles';
 
 const ActiveRoomsScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { getUserRooms, loading, error, userRooms } = useRoom();
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingRoom, setLoadingRoom] = useState(false);
 
   // Hook para modales personalizados
   const {
@@ -76,18 +79,41 @@ const ActiveRoomsScreen = ({ navigation }) => {
   /**
    * Inicia el juego en una sala
    */
-  const playInRoom = (room) => {
-    // Navegar directamente a la pantalla de juego
+  const playInRoom = async (room) => {
     try {
+      // Mostrar indicador de carga
+      setLoadingRoom(true);
+
+      // Obtener los detalles completos de la sala (incluyendo nombres de jugadores)
+      const roomDetails = await roomService.getRoomByCode(room.code, user.id);
+      
+      if (!roomDetails.success) {
+        throw new Error('No se pudo obtener los detalles de la sala');
+      }
+
+      const fullRoom = roomDetails.room;
+      
+      // Navegar a la pantalla de juego con la información completa
       navigation.navigate('Game', {
-        roomId: room.id,
-        roomCode: room.code,
+        roomId: fullRoom.id,
+        roomCode: fullRoom.code,
+        roomData: {
+          id: fullRoom.id,
+          code: fullRoom.code,
+          creatorId: fullRoom.creatorId,
+          creatorName: fullRoom.creatorName,
+          opponentId: fullRoom.opponentId,
+          opponentName: fullRoom.opponentName,
+          status: fullRoom.status,
+        }
       });
     } catch (error) {
       showErrorModal(
         'Error',
-        'No se pudo navegar a la pantalla de juego: ' + error.message
+        'No se pudo cargar la sala: ' + error.message
       );
+    } finally {
+      setLoadingRoom(false);
     }
   };
 
@@ -132,10 +158,15 @@ const ActiveRoomsScreen = ({ navigation }) => {
       <View style={styles.roomActions}>
         {room.isPlaying() ? (
           <TouchableOpacity
-            style={styles.playButton}
+            style={[styles.playButton, loadingRoom && styles.disabledButton]}
             onPress={() => playInRoom(room)}
+            disabled={loadingRoom}
           >
-            <Text style={styles.playButtonText}>🎮 Jugar</Text>
+            {loadingRoom ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.playButtonText}>🎮 Jugar</Text>
+            )}
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -217,9 +248,26 @@ const ActiveRoomsScreen = ({ navigation }) => {
 
       <View style={styles.titleContainer}>
         <Text style={styles.title}>Mis Salas Activas</Text>
-        <Text style={styles.subtitle}>
-          {userRooms.length} {userRooms.length === 1 ? 'sala' : 'salas'}
-        </Text>
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{userRooms.length}</Text>
+            <Text style={styles.statLabel}>Total</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>
+              {userRooms.filter(room => room.isCreator(user?.id)).length}
+            </Text>
+            <Text style={styles.statLabel}>Creador</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>
+              {userRooms.filter(room => !room.isCreator(user?.id)).length}
+            </Text>
+            <Text style={styles.statLabel}>Oponente</Text>
+          </View>
+        </View>
       </View>
 
       {error ? (
@@ -258,225 +306,5 @@ const ActiveRoomsScreen = ({ navigation }) => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F5', // NEUTRO
-  },
-  header: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingTop: 32,
-    paddingBottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  backButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginTop: 24,
-  },
-  backButtonText: {
-    color: '#6F4E37', // PRINCIPAL
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  logo: {
-    width: 40,
-    height: 40,
-    marginTop: 24,
-  },
-  headerSpacer: {
-    width: 44, // Mismo ancho que el botón de refrescar para mantener centrado el logo
-  },
-  refreshButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  refreshButtonText: {
-    fontSize: 20,
-  },
-  titleContainer: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#6F4E37', // PRINCIPAL
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#666',
-  },
-  listContainer: {
-    padding: 16,
-  },
-  emptyListContainer: {
-    flex: 1,
-  },
-  roomCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  roomHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  roomCodeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  roomCodeLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginRight: 8,
-  },
-  roomCode: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#6F4E37', // PRINCIPAL
-    backgroundColor: '#FFD166', // SECUNDARIO
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  statusText: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
-  },
-  roomInfo: {
-    marginBottom: 12,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  infoLabel: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
-  },
-  infoValue: {
-    fontSize: 12,
-    color: '#333',
-    fontWeight: '600',
-  },
-  roomActions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  copyButton: {
-    backgroundColor: '#FFD166', // SECUNDARIO
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    flex: 1,
-    alignItems: 'center',
-  },
-  copyButtonText: {
-    color: '#6F4E37', // PRINCIPAL
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  playButton: {
-    backgroundColor: '#28A745', // Verde para jugar
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    flex: 1,
-    alignItems: 'center',
-  },
-  playButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#6F4E37', // PRINCIPAL
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  emptyMessage: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
-  },
-  createRoomButton: {
-    backgroundColor: '#6F4E37', // PRINCIPAL
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  createRoomButtonText: {
-    color: '#F5F5F5',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  retryButton: {
-    backgroundColor: '#FFD166', // SECUNDARIO
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#6F4E37', // PRINCIPAL
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});
 
 export default ActiveRoomsScreen;

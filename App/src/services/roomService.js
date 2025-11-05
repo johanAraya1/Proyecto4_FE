@@ -301,6 +301,78 @@ class RoomService {
       }
     }
   }
+
+  /**
+   * Guarda el estado actual del juego en el backend
+   * @param {string} roomCode - Código de la sala
+   * @param {Object} gameState - Estado completo del juego
+   * @returns {Promise<Object>} - Promesa que resuelve con confirmación del guardado
+   */
+  async saveGameState(roomCode, gameState) {
+    try {
+      if (!roomCode || typeof roomCode !== 'string') {
+        throw new Error('Código de sala inválido');
+      }
+
+      const payload = {
+        gameState: gameState
+      };
+
+      const response = await this.apiClient.post(
+        `/rooms/${roomCode}/save-state`,
+        payload
+      );
+
+      if (response.status === 200 || response.status === 201) {
+        return {
+          success: true,
+          message: response.data?.message || 'Estado guardado exitosamente',
+        };
+      } else {
+        throw new Error('Error al guardar el estado del juego');
+      }
+    } catch (error) {
+      // No lanzar error para no interrumpir el juego
+      return {
+        success: false,
+        message: error.message || 'Error al guardar',
+      };
+    }
+  }
+
+  /**
+   * Carga el estado guardado del juego desde el backend
+   * @param {string} roomCode - Código de la sala
+   * @returns {Promise<Object>} - Promesa que resuelve con el estado del juego guardado
+   */
+  async loadGameState(roomCode) {
+    try {
+      if (!roomCode || typeof roomCode !== 'string') {
+        throw new Error('Código de sala inválido');
+      }
+
+      const response = await this.apiClient.get(
+        `/rooms/${roomCode}/load-state`
+      );
+
+      if (response.status === 200 && response.data) {
+        return {
+          success: true,
+          gameState: response.data.gameState || null,
+        };
+      } else {
+        return {
+          success: false,
+          gameState: null,
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        gameState: null,
+      };
+    }
+  }
 }
 
 // Exportar instancia singleton del servicio

@@ -21,8 +21,10 @@ const CustomModal = ({
   onClose = null,
   onConfirm = null,
   confirmText = 'OK',
+  showCancel = false,
+  cancelText = 'Cancelar',
   animationType = 'fade',
-}) => {
+  }) => {
   const iconMap = {
     success: '🎉',
     error: '❌',
@@ -52,9 +54,16 @@ const CustomModal = ({
   };
 
   const handleClose = () => {
+    // Este es el botón principal (confirmText, ej: "OK")
     if (onConfirm) {
       onConfirm();
+    } else if (onClose) {
+      onClose();
     }
+  };
+
+  const handleCancel = () => {
+    // Este es el botón secundario (cancelText, ej: "Finalizar turno")
     if (onClose) {
       onClose();
     }
@@ -144,31 +153,64 @@ const CustomModal = ({
             </Text>
           )}
           
-          {/* Botón */}
-          <TouchableOpacity
-            style={{
-              backgroundColor: textColorMap[type],
-              paddingHorizontal: 30,
-              paddingVertical: 12,
-              borderRadius: 25,
-              minWidth: 120,
-              shadowColor: textColorMap[type],
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.3,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
-            onPress={handleClose}
-          >
-            <Text style={{
-              color: 'white',
-              fontSize: 16,
-              fontWeight: '600',
-              textAlign: 'center',
-            }}>
-              {confirmText}
-            </Text>
-          </TouchableOpacity>
+          {/* Botones - columna en móvil, fila en web */}
+          <View style={{ 
+            flexDirection: 'column',
+            justifyContent: 'center', 
+            alignItems: 'stretch',
+            width: '100%',
+            paddingHorizontal: 10,
+          }}>
+            <TouchableOpacity
+              style={{
+                backgroundColor: textColorMap[type],
+                paddingHorizontal: 20,
+                paddingVertical: 14,
+                borderRadius: 25,
+                marginBottom: showCancel ? 10 : 0,
+                shadowColor: textColorMap[type],
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+              onPress={handleClose}
+            >
+              <Text style={{
+                color: 'white',
+                fontSize: 16,
+                fontWeight: '600',
+                textAlign: 'center',
+              }}>
+                {confirmText}
+              </Text>
+            </TouchableOpacity>
+            {showCancel && (
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#888',
+                  paddingHorizontal: 20,
+                  paddingVertical: 14,
+                  borderRadius: 25,
+                  shadowColor: '#888',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
+                onPress={handleCancel}
+              >
+                <Text style={{
+                  color: 'white',
+                  fontSize: 16,
+                  fontWeight: '600',
+                  textAlign: 'center',
+                }}>
+                  {cancelText}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
     );
@@ -207,16 +249,32 @@ const CustomModal = ({
               <Text style={styles.modalMessage}>{message}</Text>
             )}
 
-            {/* Botón */}
-            <TouchableOpacity
-              style={[
-                styles.modalButton,
-                { backgroundColor: buttonColorMap[type] || '#28A745' },
-              ]}
-              onPress={handleClose}
-            >
-              <Text style={styles.modalButtonText}>{confirmText}</Text>
-            </TouchableOpacity>
+            {/* Botones - columna en móvil */}
+            <View style={{ 
+              flexDirection: 'column',
+              justifyContent: 'center', 
+              alignItems: 'stretch',
+              width: '100%',
+              paddingHorizontal: 5,
+            }}>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  { backgroundColor: buttonColorMap[type] || '#28A745', marginBottom: showCancel ? 10 : 0 },
+                ]}
+                onPress={handleClose}
+              >
+                <Text style={styles.modalButtonText}>{confirmText}</Text>
+              </TouchableOpacity>
+              {showCancel && (
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: '#888' }]}
+                  onPress={handleCancel}
+                >
+                  <Text style={styles.modalButtonText}>{cancelText}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </Animated.View>
       </View>
@@ -296,10 +354,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5, // Menos padding horizontal
   },
   modalButton: {
-    paddingHorizontal: 35,
-    paddingVertical: 15, // Más altura para el botón
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderRadius: 25,
-    minWidth: 130,
+    width: '100%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,

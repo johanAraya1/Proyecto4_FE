@@ -94,9 +94,6 @@ export const generateRandomOrder = () => {
     id: Date.now()
   };
 
-  // Debug log
-  console.log('Orden generada:', order);
-  
   return order;
 };
 
