@@ -38,25 +38,29 @@ const FriendsScreen = () => {
   const onSend = async (user) => {
     // Validaciones antes de enviar
     if (!user || !user.id) {
-      Alert.alert('Error', 'No se puede enviar solicitud. Datos de usuario incompletos.');
+      Alert.alert('❌ Error', 'No se puede enviar solicitud. Datos de usuario incompletos.');
       return;
     }
 
     if (!auth.user || !auth.user.id) {
-      Alert.alert('Error', 'Debes estar logueado para enviar solicitudes de amistad.');
+      Alert.alert('❌ Error', 'Debes estar logueado para enviar solicitudes de amistad.');
       return;
     }
 
     if (user.id === auth.user.id) {
-      Alert.alert('Error', 'No puedes enviarte una solicitud de amistad a ti mismo.');
+      Alert.alert('❌ Error', 'No puedes enviarte una solicitud de amistad a ti mismo.');
       return;
     }
 
     try {
       const result = await friendCtrl.sendRequest(user.id);
       
+      console.log('🔍 DEBUG - Resultado de sendRequest:', result);
+      
       // Verificar que la solicitud se envió correctamente
-      if (result) {
+      // El backend puede retornar diferentes formatos, validamos múltiples casos
+      if (result && (result.success || result.message || result.id)) {
+        console.log('✅ Solicitud enviada exitosamente');
         setSentToUser(user);
         setShowSuccessModal(true);
         
@@ -65,19 +69,25 @@ const FriendsScreen = () => {
         setHasSearched(false);
         friendCtrl.clearSearchResult();
       } else {
-        Alert.alert('Error', 'No se pudo enviar la solicitud. Intenta nuevamente.');
+        console.error('❌ Respuesta inesperada del backend:', result);
+        Alert.alert('❌ Error', 'No se pudo enviar la solicitud. Respuesta inesperada del servidor.');
       }
     } catch (err) {
-      console.error('Error enviando solicitud:', err);
+      console.error('❌ Error enviando solicitud:', err);
       
       // Mensajes de error más específicos
       let errorMessage = 'Error enviando solicitud';
-      if (err.message.includes('Ya son amigos')) {
-        errorMessage = 'Ya son amigos';
-      } else if (err.message.includes('solicitud pendiente')) {
-        errorMessage = 'Ya existe una solicitud pendiente con este usuario';
-      } else if (err.message.includes('no encontrado')) {
-        errorMessage = 'Usuario no encontrado';
+      
+      if (err.message.includes('Ya son amigos') || err.message.includes('already friends')) {
+        errorMessage = '👫 Ya son amigos';
+      } else if (err.message.includes('solicitud pendiente') || err.message.includes('pending request') || err.message.includes('already sent')) {
+        errorMessage = '⏳ Ya existe una solicitud pendiente con este usuario';
+      } else if (err.message.includes('no encontrado') || err.message.includes('not found')) {
+        errorMessage = '🔍 Usuario no encontrado';
+      } else if (err.message.includes('mismo usuario') || err.message.includes('same user')) {
+        errorMessage = '🚫 No puedes enviarte una solicitud a ti mismo';
+      } else if (err.message.includes('network') || err.message.includes('fetch')) {
+        errorMessage = '📡 Error de conexión. Verifica tu internet e intenta nuevamente.';
       } else {
         errorMessage = err.message || 'Error desconocido. Intenta nuevamente.';
       }
@@ -185,8 +195,15 @@ const FriendsScreen = () => {
               <Text style={styles.modalUserName}>
                 {sentToUser?.name || sentToUser?.email || 'el usuario'}
               </Text>
+              {sentToUser?.elo && (
+                <Text style={styles.modalElo}>
+                  {'\n'}(ELO: {sentToUser.elo.toLocaleString()})
+                </Text>
+              )}
               {'\n\n'}
-              Recibirás una notificación cuando {sentToUser?.name ? 'responda' : 'el usuario responda'} a tu solicitud.
+              📩 Recibirás una notificación cuando {sentToUser?.name ? sentToUser.name : 'el usuario'} responda a tu solicitud.
+              {'\n\n'}
+              💡 Puedes revisar el estado en Solicitudes de Amistad
             </Text>
             <TouchableOpacity style={styles.modalButton} onPress={closeSuccessModal}>
               <Text style={styles.modalButtonText}>¡Perfecto!</Text>
@@ -422,6 +439,11 @@ const styles = StyleSheet.create({
   modalUserName: {
     fontWeight: 'bold',
     color: '#6F4E37',
+  },
+  modalElo: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
   },
   modalButton: {
     backgroundColor: '#6F4E37',

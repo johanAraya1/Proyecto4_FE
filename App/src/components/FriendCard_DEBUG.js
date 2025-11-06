@@ -17,8 +17,54 @@ const FriendCard = ({ user, onSendRequest, onAccept, onReject, showElo = true, r
     hasName: !!user?.name,
     hasEmail: !!user?.email,
     hasElo: !!user?.elo,
-    hasRequestData: !!requestData
+    hasRequestData: !!requestData,
+    hasOnReject: !!onReject,
+    hasOnAccept: !!onAccept
   });
+
+  // Función de prueba para el botón de rechazar
+  const handleRejectPress = () => {
+    console.log('🔴 REJECT BUTTON PRESSED!');
+    console.log('🔍 Data available:', { user, requestData });
+    
+    // Mostrar alert simple primero para confirmar que el botón funciona
+    Alert.alert(
+      '🧪 Test Debug', 
+      'El botón de rechazar SÍ está funcionando!\n\nDatos:\n' + 
+      `Usuario: ${displayName}\n` +
+      `Request ID: ${requestData?.id || 'No disponible'}\n` +
+      `Has onReject function: ${!!onReject}`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Continuar con rechazo', 
+          onPress: () => {
+            if (onReject) {
+              console.log('🚀 Calling onReject with:', requestData || user);
+              onReject(requestData || user);
+            } else {
+              console.error('❌ onReject function is not available!');
+              Alert.alert('Error', 'Función onReject no disponible');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Función de prueba para el botón de aceptar
+  const handleAcceptPress = () => {
+    console.log('🟢 ACCEPT BUTTON PRESSED!');
+    console.log('🔍 Data available:', { user, requestData });
+    
+    if (onAccept) {
+      console.log('🚀 Calling onAccept with:', requestData || user);
+      onAccept(requestData || user);
+    } else {
+      console.error('❌ onAccept function is not available!');
+      Alert.alert('Error', 'Función onAccept no disponible');
+    }
+  };
 
   return (
     <View style={styles.card}>
@@ -58,6 +104,15 @@ const FriendCard = ({ user, onSendRequest, onAccept, onReject, showElo = true, r
         )}
       </View>
 
+      {/* Debug info visible */}
+      <View style={styles.debugInfo}>
+        <Text style={styles.debugText}>
+          🧪 DEBUG: requestData={requestData ? 'SÍ' : 'NO'}, 
+          onReject={onReject ? 'SÍ' : 'NO'}, 
+          requestId={requestData?.id || 'N/A'}
+        </Text>
+      </View>
+
       {/* Botones de acción */}
       {(onSendRequest || onAccept || onReject) && (
         <View style={styles.actionSection}>
@@ -68,33 +123,14 @@ const FriendCard = ({ user, onSendRequest, onAccept, onReject, showElo = true, r
           )}
 
           {onAccept && (
-            <TouchableOpacity style={styles.acceptButton} onPress={() => {
-              console.log('🔍 DEBUG - Accept button clicked with:', { user, requestData });
-              onAccept(requestData || user);
-            }}>
+            <TouchableOpacity style={styles.acceptButton} onPress={handleAcceptPress}>
               <Text style={styles.acceptButtonText}>✅ Aceptar</Text>
             </TouchableOpacity>
           )}
 
           {onReject && (
-            <TouchableOpacity 
-              style={styles.rejectButton} 
-              onPress={() => {
-                console.log('� FriendCard - Reject button pressed!');
-                console.log('🔍 Available data:', { user, requestData });
-                console.log('🔍 onReject function:', typeof onReject);
-                
-                try {
-                  const dataToPass = requestData || user;
-                  console.log('🚀 Calling onReject with:', dataToPass);
-                  onReject(dataToPass);
-                } catch (error) {
-                  console.error('❌ Error calling onReject:', error);
-                  Alert.alert('Error', 'Error al llamar función onReject: ' + error.message);
-                }
-              }}
-            >
-              <Text style={styles.rejectButtonText}>❌ Rechazar</Text>
+            <TouchableOpacity style={styles.rejectButton} onPress={handleRejectPress}>
+              <Text style={styles.rejectButtonText}>❌ Rechazar (DEBUG)</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -202,6 +238,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
     opacity: 0.9,
+  },
+  debugInfo: {
+    backgroundColor: '#e8f5e8',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#c3e6c3',
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#2d5a2d',
+    fontFamily: 'monospace',
   },
   actionSection: {
     borderTopWidth: 1,

@@ -160,12 +160,26 @@ const friendService = {
 
       const data = await res.json();
       
+      console.log('🔍 DETAILED DEBUG - friendService.rejectFriendRequest response:', {
+        status: res.status,
+        statusText: res.statusText,
+        ok: res.ok,
+        data,
+        dataType: typeof data,
+        hasMessage: !!data?.message,
+        message: data?.message,
+        hasError: !!data?.error,
+        error: data?.error,
+        keys: data ? Object.keys(data) : 'No keys'
+      });
+      
       if (!res.ok) {
         const errorMessage = data.error || `HTTP ${res.status}`;
+        console.error('❌ Backend returned error:', errorMessage);
         throw new Error(errorMessage);
       }
       
-      console.log('❌ Solicitud rechazada en backend:', data);
+      console.log('✅ Solicitud rechazada en backend:', data);
       return data;
     } catch (err) {
       console.error('❌ friendService.rejectFriendRequest error:', err.message);

@@ -60,11 +60,21 @@ export const useFriendController = (currentUser) => {
       
       const res = await friendService.sendFriendRequest(currentUser.id, toUserId);
       
-      if (res && res.message) {
-        console.log('✅ Solicitud enviada exitosamente:', res);
+      // Validar diferentes tipos de respuesta exitosa
+      if (res) {
+        if (res.success === true || res.message || res.id || res.request_id) {
+          console.log('✅ Solicitud enviada exitosamente:', res);
+          return res;
+        } else if (res.error) {
+          // El backend retornó un error pero con status 200
+          throw new Error(res.error);
+        } else {
+          console.log('⚠️ Respuesta inesperada pero no nula:', res);
+          return res; // Asumir éxito si tenemos alguna respuesta
+        }
+      } else {
+        throw new Error('No se recibió respuesta del servidor');
       }
-      
-      return res;
     } catch (err) {
       console.error('❌ Error enviando solicitud:', err);
       setError(err.message || 'Error enviando solicitud');
@@ -122,14 +132,27 @@ export const useFriendController = (currentUser) => {
       
       const res = await friendService.acceptFriendRequest(requestId, currentUser?.id);
       
+      // Validar diferentes tipos de respuesta exitosa
       if (res) {
-        console.log('✅ Solicitud aceptada exitosamente:', res);
-        // recargar requests/friends luego de aceptar
-        await loadRequests();
-        await loadFriends();
+        if (res.success === true || res.message || res.id || res.friendship_id) {
+          console.log('✅ Solicitud aceptada exitosamente:', res);
+          // Recargar requests/friends después de aceptar
+          await loadRequests();
+          await loadFriends();
+          return res;
+        } else if (res.error) {
+          // El backend retornó un error pero con status 200
+          throw new Error(res.error);
+        } else {
+          console.log('⚠️ Respuesta inesperada pero no nula:', res);
+          // Recargar de todas formas por si acaso
+          await loadRequests();
+          await loadFriends();
+          return res; // Asumir éxito si tenemos alguna respuesta
+        }
+      } else {
+        throw new Error('No se recibió respuesta del servidor');
       }
-      
-      return res;
     } catch (err) {
       console.error('❌ Error aceptando solicitud:', err);
       setError(err.message || 'Error aceptando solicitud');
@@ -161,13 +184,41 @@ export const useFriendController = (currentUser) => {
       
       const res = await friendService.rejectFriendRequest(requestId, currentUser?.id);
       
-      if (res) {
-        console.log('❌ Solicitud rechazada exitosamente:', res);
-        // recargar requests luego de rechazar
-        await loadRequests();
-      }
+      console.log('🔍 DETAILED DEBUG - Backend response for reject:', {
+        res,
+        type: typeof res,
+        hasMessage: !!res?.message,
+        message: res?.message,
+        hasSuccess: !!res?.success,
+        success: res?.success,
+        hasId: !!res?.id,
+        id: res?.id,
+        hasError: !!res?.error,
+        error: res?.error,
+        keys: res ? Object.keys(res) : 'No keys'
+      });
       
-      return res;
+      // Validar diferentes tipos de respuesta exitosa
+      if (res) {
+        if (res.success === true || res.message || res.id) {
+          console.log('✅ Validación exitosa - Solicitud rechazada:', res);
+          // Recargar requests después de rechazar
+          await loadRequests();
+          return res;
+        } else if (res.error) {
+          // El backend retornó un error pero con status 200
+          console.error('❌ Backend retornó error:', res.error);
+          throw new Error(res.error);
+        } else {
+          console.log('⚠️ Respuesta inesperada pero no nula:', res);
+          // Recargar de todas formas por si acaso
+          await loadRequests();
+          return res; // Asumir éxito si tenemos alguna respuesta
+        }
+      } else {
+        console.error('❌ No se recibió respuesta del servidor');
+        throw new Error('No se recibió respuesta del servidor');
+      }
     } catch (err) {
       console.error('❌ Error rechazando solicitud:', err);
       setError(err.message || 'Error rechazando solicitud');
