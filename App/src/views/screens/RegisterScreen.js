@@ -17,22 +17,24 @@ import { useAuth } from '../../controllers/AuthContext';
 import GoogleLogo from '../../components/GoogleLogo';
 
 /**
- * Pantalla de Login - Parte "Vista" de la arquitectura MVC
- * Permite al usuario ingresar sus credenciales para autenticarse
+ * Pantalla de Registro - Parte "Vista" de la arquitectura MVC
+ * Permite al usuario crear una nueva cuenta
  */
-const LoginScreen = ({ navigation }) => {
+const RegisterScreen = ({ navigation }) => {
   // Estados locales para los campos de entrada
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
 
   // Usar el controlador de autenticación
-  const { login, isLoading, error, clearError } = useAuth();
+  const { register, isLoading, error, clearError } = useAuth();
 
   /**
-   * Maneja el proceso de login cuando se presiona el botón
+   * Maneja el proceso de registro cuando se presiona el botón
    */
-  const handleLogin = async () => {
+  const handleRegister = async () => {
     try {
       // Limpiar errores previos
       clearError();
@@ -45,15 +47,24 @@ const LoginScreen = ({ navigation }) => {
         return;
       }
 
-      // Intentar hacer login
-      const success = await login(email.trim(), password);
+      // Intentar hacer registro
+      const success = await register(email.trim(), password, username.trim());
       
       if (success) {
-        // Navegar al Dashboard si el login fue exitoso
-        navigation.replace('Dashboard');
+        // Mostrar mensaje de éxito
+        Alert.alert(
+          'Registro exitoso',
+          'Tu cuenta ha sido creada. Por favor inicia sesión.',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('Login')
+            }
+          ]
+        );
       } else {
         // El error se maneja automáticamente por el controlador
-        Alert.alert('Error', error || 'No se pudo iniciar sesión');
+        Alert.alert('Error', error || 'No se pudo completar el registro');
       }
     } catch (err) {
       Alert.alert('Error', 'Ocurrió un error inesperado');
@@ -67,6 +78,12 @@ const LoginScreen = ({ navigation }) => {
   const validateForm = () => {
     const errors = {};
 
+    if (!username.trim()) {
+      errors.username = 'El nombre de usuario es requerido';
+    } else if (username.trim().length < 3) {
+      errors.username = 'El nombre debe tener al menos 3 caracteres';
+    }
+
     if (!email.trim()) {
       errors.email = 'El email es requerido';
     } else if (!/\S+@\S+\.\S+/.test(email)) {
@@ -79,28 +96,37 @@ const LoginScreen = ({ navigation }) => {
       errors.password = 'La contraseña debe tener al menos 6 caracteres';
     }
 
+    if (!confirmPassword.trim()) {
+      errors.confirmPassword = 'Debes confirmar la contraseña';
+    } else if (password !== confirmPassword) {
+      errors.confirmPassword = 'Las contraseñas no coinciden';
+    }
+
     return errors;
   };
 
   /**
-   * Maneja los cambios en el campo de email
+   * Maneja los cambios en los campos
    */
-  const handleEmailChange = (text) => {
-    setEmail(text);
-    // Limpiar error del campo si existe
-    if (fieldErrors.email) {
-      setFieldErrors(prev => ({ ...prev, email: null }));
+  const handleFieldChange = (field, value) => {
+    switch(field) {
+      case 'username':
+        setUsername(value);
+        break;
+      case 'email':
+        setEmail(value);
+        break;
+      case 'password':
+        setPassword(value);
+        break;
+      case 'confirmPassword':
+        setConfirmPassword(value);
+        break;
     }
-  };
-
-  /**
-   * Maneja los cambios en el campo de contraseña
-   */
-  const handlePasswordChange = (text) => {
-    setPassword(text);
+    
     // Limpiar error del campo si existe
-    if (fieldErrors.password) {
-      setFieldErrors(prev => ({ ...prev, password: null }));
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => ({ ...prev, [field]: null }));
     }
   };
 
@@ -125,42 +151,88 @@ const LoginScreen = ({ navigation }) => {
             <Text style={styles.brandName}>CoffeeCenfo</Text>
           </View>
 
-          {/* Eslogan */}
-          <Text style={styles.tagline}>Conviértete en el mejor barista</Text>
+          {/* Título */}
+          <Text style={styles.tagline}>Crea tu cuenta</Text>
+
+          {/* Campo de Nombre de Usuario */}
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={[
+                styles.input,
+                fieldErrors.username && styles.inputError
+              ]}
+              placeholder="Nombre de usuario"
+              placeholderTextColor="#999"
+              value={username}
+              onChangeText={(text) => handleFieldChange('username', text)}
+              autoCapitalize="none"
+              editable={!isLoading}
+            />
+            {fieldErrors.username && (
+              <Text style={styles.fieldErrorText}>{fieldErrors.username}</Text>
+            )}
+          </View>
 
           {/* Campo de Email */}
           <View style={styles.inputContainer}>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                fieldErrors.email && styles.inputError
+              ]}
               placeholder="Email"
               placeholderTextColor="#999"
               value={email}
-              onChangeText={handleEmailChange}
+              onChangeText={(text) => handleFieldChange('email', text)}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
               editable={!isLoading}
             />
+            {fieldErrors.email && (
+              <Text style={styles.fieldErrorText}>{fieldErrors.email}</Text>
+            )}
           </View>
 
           {/* Campo de Contraseña */}
           <View style={styles.inputContainer}>
             <TextInput
-              style={styles.input}
-              placeholder="Password"
+              style={[
+                styles.input,
+                fieldErrors.password && styles.inputError
+              ]}
+              placeholder="Contraseña"
               placeholderTextColor="#999"
               value={password}
-              onChangeText={handlePasswordChange}
+              onChangeText={(text) => handleFieldChange('password', text)}
               secureTextEntry
-              autoComplete="password"
+              autoComplete="password-new"
               editable={!isLoading}
             />
+            {fieldErrors.password && (
+              <Text style={styles.fieldErrorText}>{fieldErrors.password}</Text>
+            )}
           </View>
 
-          {/* Enlace de contraseña olvidada */}
-          <TouchableOpacity style={styles.forgotPasswordContainer}>
-            <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
-          </TouchableOpacity>
+          {/* Campo de Confirmar Contraseña */}
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={[
+                styles.input,
+                fieldErrors.confirmPassword && styles.inputError
+              ]}
+              placeholder="Confirmar contraseña"
+              placeholderTextColor="#999"
+              value={confirmPassword}
+              onChangeText={(text) => handleFieldChange('confirmPassword', text)}
+              secureTextEntry
+              autoComplete="password-new"
+              editable={!isLoading}
+            />
+            {fieldErrors.confirmPassword && (
+              <Text style={styles.fieldErrorText}>{fieldErrors.confirmPassword}</Text>
+            )}
+          </View>
 
           {/* Mensaje de error global */}
           {error && (
@@ -169,24 +241,24 @@ const LoginScreen = ({ navigation }) => {
             </View>
           )}
 
-          {/* Botón de Login */}
+          {/* Botón de Registro */}
           <TouchableOpacity
             style={[
-              styles.loginButton,
-              isLoading && styles.loginButtonDisabled
+              styles.registerButton,
+              isLoading && styles.registerButtonDisabled
             ]}
-            onPress={handleLogin}
+            onPress={handleRegister}
             disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="#F5F5F5" size="small" />
             ) : (
-              <Text style={styles.loginButtonText}>Ingresar</Text>
+              <Text style={styles.registerButtonText}>Crear cuenta</Text>
             )}
           </TouchableOpacity>
 
-          {/* Separador "O ingresa con" */}
-          <Text style={styles.separatorText}>O ingresa con</Text>
+          {/* Separador "O regístrate con" */}
+          <Text style={styles.separatorText}>O regístrate con</Text>
 
           {/* Botón de Google */}
           <TouchableOpacity style={styles.googleButton}>
@@ -196,11 +268,11 @@ const LoginScreen = ({ navigation }) => {
             <Text style={styles.googleButtonText}>Continuar con Google</Text>
           </TouchableOpacity>
 
-          {/* Enlace de registro */}
-          <View style={styles.registerContainer}>
-            <Text style={styles.registerText}>¿No tiene cuenta? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.registerLink}>Regístrate</Text>
+          {/* Enlace de login */}
+          <View style={styles.loginContainer}>
+            <Text style={styles.loginText}>¿Ya tienes cuenta? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+              <Text style={styles.loginLink}>Inicia sesión</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -218,7 +290,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
-    alignItems: 'center', // Centrar en web
+    paddingVertical: 32,
+    alignItems: 'center',
   },
   formContainer: {
     backgroundColor: '#FFFFFF',
@@ -241,8 +314,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   logoImage: {
-    width: 100,
-    height: 100,
+    width: 80,
+    height: 80,
     marginBottom: 12,
   },
   brandName: {
@@ -252,7 +325,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   tagline: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#FFD166', // SECUNDARIO
     textAlign: 'center',
     marginBottom: 32,
@@ -273,14 +346,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     color: '#333',
   },
-  forgotPasswordContainer: {
-    alignSelf: 'flex-end',
-    marginBottom: 24,
+  inputError: {
+    borderColor: '#E74C3C',
   },
-  forgotPasswordText: {
-    color: '#FFD166', // SECUNDARIO
-    fontSize: 14,
-    textDecorationLine: 'underline',
+  fieldErrorText: {
+    color: '#E74C3C',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
   },
   errorContainer: {
     width: '100%',
@@ -291,7 +364,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-  loginButton: {
+  registerButton: {
     width: '100%',
     height: 50,
     backgroundColor: '#6F4E37', // PRINCIPAL
@@ -300,10 +373,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-  loginButtonDisabled: {
+  registerButtonDisabled: {
     backgroundColor: '#B8A196',
   },
-  loginButtonText: {
+  registerButtonText: {
     color: '#F5F5F5', // NEUTRO
     fontSize: 16,
     fontWeight: '600',
@@ -346,16 +419,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'normal',
   },
-  registerContainer: {
+  loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  registerText: {
+  loginText: {
     color: '#666',
     fontSize: 14,
   },
-  registerLink: {
+  loginLink: {
     color: '#FFD166', // SECUNDARIO
     fontSize: 14,
     fontWeight: '600',
@@ -363,4 +436,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LoginScreen;
+export default RegisterScreen;

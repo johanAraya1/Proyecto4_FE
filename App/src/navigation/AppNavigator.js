@@ -1,6 +1,7 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from '../views/screens/LoginScreen';
+import RegisterScreen from '../views/screens/RegisterScreen';
 import DashboardScreen from '../views/screens/DashboardScreen';
 import RoomCreatedScreen from '../views/screens/RoomCreatedScreen';
 import ActiveRoomsScreen from '../views/screens/ActiveRoomsScreen';
@@ -38,6 +39,16 @@ const AppNavigator = () => {
         options={{
           title: 'Iniciar Sesión',
           headerShown: false, // Ocultar header en login para diseño más limpio
+        }}
+      />
+      
+      {/* Pantalla de Registro */}
+      <Stack.Screen
+        name="Register"
+        component={RegisterScreen}
+        options={{
+          title: 'Crear Cuenta',
+          headerShown: false, // Ocultar header en registro para diseño más limpio
         }}
       />
       
