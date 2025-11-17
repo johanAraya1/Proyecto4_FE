@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { generateGrid } from '../utils/gridGenerator';
-import { generateRandomOrder } from '../utils/orderGenerator';
+import { generateRandomOrder, generateUniqueOrders } from '../utils/orderGenerator';
 import useCustomModal from './useCustomModal';
 import { gameWebSocketService } from '../services/gameWebSocketService';
 import { roomService } from '../services/roomService';
@@ -9,24 +9,24 @@ export function useGameLogic(roomCode, userId, roomData = null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [ingredientGrid, setIngredientGrid] = useState(null);
-  const initialOrder1 = generateRandomOrder();
-  const initialOrder2 = generateRandomOrder();
+  
+  // Generar 3 órdenes únicas iniciales para cada jugador
+  const generateInitialOrders = () => generateUniqueOrders(3);
   
   const [gameState, setGameState] = useState({
     currentTurn: 1,
     player1: {
       name: null,
       score: 0,
-      order: initialOrder1,
+      orders: generateInitialOrders(),
       inventory: { AGUA: 0, CAFE: 0, LECHE: 0, CARAMELO: 0 }
     },
     player2: {
       name: null,
       score: 0,
-      order: initialOrder2,
+      orders: generateInitialOrders(),
       inventory: { AGUA: 0, CAFE: 0, LECHE: 0, CARAMELO: 0 }
-    },
-    grid: [[1, 0, 0], [0, 0, 0], [0, 0, 2]]
+    }
   });
 
   const [playerPositions, setPlayerPositions] = useState({
@@ -38,7 +38,7 @@ export function useGameLogic(roomCode, userId, roomData = null) {
   const [movementCount, setMovementCount] = useState(0);
   const [possibleMoves, setPossibleMoves] = useState([]);
   const [isExchangeMode, setIsExchangeMode] = useState(false);
-  const [selectedOrderCard, setSelectedOrderCard] = useState(null);
+  const [selectedOrderCards, setSelectedOrderCards] = useState([]);
   
   const { modalVisible, modalData, showModal, hideModal } = useCustomModal();
   
@@ -122,13 +122,9 @@ export function useGameLogic(roomCode, userId, roomData = null) {
         }
       });
       
-      // SINCRONIZACIÓN EN TIEMPO REAL: Ver canje de orden del oponente
+      // SINCRONIZACIÓN EN TIEMPO REAL: Ver canje de orden (propio o del oponente)
       gameWebSocketService.on('trade', (payload) => {
         if (!payload) return;
-        
-        // Solo actualizar si el canje es del OTRO jugador
-        const isMyTrade = payload.playerId === userId;
-        if (isMyTrade) return;
         
         setGameState((prev) => {
           const isPlayer1Trade = payload.playerId === roomData?.creatorId;
@@ -136,48 +132,50 @@ export function useGameLogic(roomCode, userId, roomData = null) {
           
           const updatedState = { ...prev };
           
-          // Actualizar score si hay puntos ganados
-          if (payload.pointsEarned) {
+          // ⭐ Actualizar score con el valor que viene del backend (NO sumar localmente)
+          if (payload.totalPoints !== undefined || payload.pointsEarned !== undefined) {
+            const points = payload.totalPoints || payload.pointsEarned;
             updatedState[playerKey] = {
               ...prev[playerKey],
-              score: prev[playerKey].score + payload.pointsEarned
+              score: prev[playerKey].score + points  // El backend envía los puntos a sumar
             };
           }
           
-          // Actualizar orden si hay una nueva
-          if (payload.newOrder) {
-            updatedState[playerKey] = {
-              ...updatedState[playerKey],
-              order: payload.newOrder
-            };
-          }
-          
-          // Actualizar inventario (restar ingredientes usados)
-          if (payload.order && payload.order.ingredients) {
-            const ingredientMap = { 
-              'Café': 'CAFE', 
-              'Cafe': 'CAFE',
-              'CAFÉ': 'CAFE',
-              'CAFE': 'CAFE',
-              'Leche': 'LECHE',
-              'LECHE': 'LECHE',
-              'Agua': 'AGUA',
-              'AGUA': 'AGUA',
-              'Caramelo': 'CARAMELO',
-              'CARAMELO': 'CARAMELO'
-            };
-            
-            const updatedInventory = { ...updatedState[playerKey].inventory };
-            payload.order.ingredients.forEach((ingredient) => {
-              const ingredientType = ingredientMap[ingredient] || ingredient.toUpperCase();
-              if (updatedInventory[ingredientType] > 0) {
-                updatedInventory[ingredientType] -= 1;
+          // ⭐ Actualizar órdenes con el array completo que viene del backend
+          if (payload.newOrders && Array.isArray(payload.newOrders)) {
+            // Convertir órdenes del backend al formato del frontend si es necesario
+            const convertOrderFromBackendFormat = (backendOrder) => {
+              if (!backendOrder) return null;
+              
+              if (backendOrder.name && backendOrder.points !== undefined) {
+                return backendOrder;
               }
-            });
+              
+              if (backendOrder.recipe && backendOrder.reward !== undefined) {
+                return {
+                  id: backendOrder.id,
+                  name: backendOrder.recipe,
+                  points: backendOrder.reward,
+                  ingredients: backendOrder.ingredients
+                };
+              }
+              
+              return backendOrder;
+            };
+            
+            const formattedOrders = payload.newOrders.map(convertOrderFromBackendFormat);
             
             updatedState[playerKey] = {
               ...updatedState[playerKey],
-              inventory: updatedInventory
+              orders: formattedOrders
+            };
+          }
+          
+          // ⭐ Actualizar inventario con el valor que viene del backend
+          if (payload.updatedInventory) {
+            updatedState[playerKey] = {
+              ...updatedState[playerKey],
+              inventory: payload.updatedInventory
             };
           }
           
@@ -308,18 +306,17 @@ export function useGameLogic(roomCode, userId, roomData = null) {
           player1: {
             name: player1Name,
             score: loadedState.player1?.score || 0,
-            order: convertOrderFromBackendFormat(loadedState.player1?.order) || generateRandomOrder(),
+            orders: loadedState.player1?.orders ? loadedState.player1.orders.map(convertOrderFromBackendFormat) : generateUniqueOrders(3),
             inventory: sanitizeInventory(loadedState.player1?.inventory),
             elo: 1500
           },
           player2: {
             name: player2Name,
             score: loadedState.player2?.score || 0,
-            order: convertOrderFromBackendFormat(loadedState.player2?.order) || generateRandomOrder(),
+            orders: loadedState.player2?.orders ? loadedState.player2.orders.map(convertOrderFromBackendFormat) : generateUniqueOrders(3),
             inventory: sanitizeInventory(loadedState.player2?.inventory),
             elo: 1500
-          },
-          grid: loadedState.grid || [[1, 0, 0], [0, 0, 0], [0, 0, 2]]
+          }
         });
         
 
@@ -348,12 +345,12 @@ export function useGameLogic(roomCode, userId, roomData = null) {
 
 
           
-          // ? Incluir las �rdenes de ambos jugadores en GRID_INITIALIZED
+          // ? Incluir las órdenes de ambos jugadores en GRID_INITIALIZED
           gameWebSocketService.sendGridInitialization(
             newGrid, 
             initialPositions,
-            gameState.player1.order,  // Orden del jugador 1
-            gameState.player2.order   // Orden del jugador 2
+            gameState.player1.orders,  // Array de órdenes del jugador 1
+            gameState.player2.orders   // Array de órdenes del jugador 2
           );
         }
         
@@ -417,7 +414,6 @@ export function useGameLogic(roomCode, userId, roomData = null) {
   };
 
   const executeMove = (fromRow, fromCol, toRow, toCol) => {
-    const newGrid = gameState.grid.map((row) => [...row]);
     const currentPlayer = gameState.currentTurn;
     const newPositions = { ...playerPositions };
     
@@ -452,7 +448,7 @@ export function useGameLogic(roomCode, userId, roomData = null) {
       );
     }
     
-    const newGameState = { ...gameState, grid: newGrid, playerPositions: newPositions };
+    const newGameState = { ...gameState, playerPositions: newPositions };
     if (currentPlayer === 1) {
       newGameState.player1 = {
         ...gameState.player1,
@@ -493,20 +489,42 @@ export function useGameLogic(roomCode, userId, roomData = null) {
 
   const handleCellPress = (row, col) => {
     if (gameState.currentTurn !== 1 && gameState.currentTurn !== 2) return;
+    
+    // ✅ VALIDACIÓN 1: Solo el jugador logueado puede jugar
+    const isPlayer1 = userId === roomData?.creatorId;
+    const isPlayer2 = userId === roomData?.opponentId;
+    const myTurn = isPlayer1 ? 1 : isPlayer2 ? 2 : null;
+    
+    if (myTurn === null) {
+      showModal('Error', 'No se pudo identificar tu jugador.', 'error');
+      return;
+    }
+    
+    // ✅ VALIDACIÓN 2: Solo puedes jugar en TU turno
+    if (gameState.currentTurn !== myTurn) {
+      showModal('No es tu turno', 'Espera a que tu oponente termine su turno.', 'warning');
+      return;
+    }
+    
     if (movementCount >= 3) {
       showModal('Límite de movimientos alcanzado', 'No puedes realizar más movimientos. Por favor, termina tu turno.', 'warning');
       return;
     }
+    
     const currentPlayerPosition = gameState.currentTurn === 1 ? playerPositions.player1 : playerPositions.player2;
     const opponentPosition = gameState.currentTurn === 1 ? playerPositions.player2 : playerPositions.player1;
     const isCurrentPlayerHere = currentPlayerPosition.row === row && currentPlayerPosition.col === col;
     const isOpponentHere = opponentPosition.row === row && opponentPosition.col === col;
+    
+    // ✅ VALIDACIÓN 3: Si toca su propia ficha, mostrar movimientos posibles
     if (isCurrentPlayerHere) {
       const moves = calculatePossibleMoves(row, col);
       setSelectedPiece({ row, col });
       setPossibleMoves(moves);
       return;
     }
+    
+    // ✅ VALIDACIÓN 4: Si ya tiene una ficha seleccionada, validar el movimiento
     if (selectedPiece) {
       const rowDiff = Math.abs(row - selectedPiece.row);
       const colDiff = Math.abs(col - selectedPiece.col);
@@ -534,20 +552,30 @@ export function useGameLogic(roomCode, userId, roomData = null) {
     }
   };
 
-  const handleOrderCardPress = (playerNumber) => {
-    if (isExchangeMode && gameState.currentTurn === playerNumber) {
-      setSelectedOrderCard(selectedOrderCard === `player${playerNumber}` ? null : `player${playerNumber}`);
+  const handleOrderCardPress = (orderId) => {
+    if (isExchangeMode) {
+      setSelectedOrderCards((prev) => {
+        if (prev.includes(orderId)) {
+          // Si ya está seleccionada, la deseleccionamos
+          return prev.filter(id => id !== orderId);
+        } else {
+          // Si no está seleccionada, la agregamos
+          return [...prev, orderId];
+        }
+      });
     }
   };
 
-  const validateIngredientsForOrder = () => {
-    if (!selectedOrderCard) {
-      showModal('Selecciona una orden', 'Debes marcar una orden en tu tarjeta para canjear.', 'warning', null, 'OK');
-      return false;
+  const validateIngredientsForOrders = () => {
+    if (selectedOrderCards.length === 0) {
+      showModal('Selecciona órdenes', 'Debes marcar al menos una orden en tu tarjeta para canjear.', 'warning', null, 'OK');
+      return { valid: false, missingOrders: [] };
     }
+    
     const currentPlayer = gameState.currentTurn === 1 ? gameState.player1 : gameState.player2;
-    const order = currentPlayer.order;
-    const inventory = currentPlayer.inventory;
+    const selectedOrders = currentPlayer.orders.filter(o => selectedOrderCards.includes(o.id));
+    const inventory = { ...currentPlayer.inventory }; // Copia para simular consumo
+    
     // Mapeo SIN acentos - los ingredientes pueden venir con o sin acento
     const ingredientMap = { 
       'Café': 'CAFE', 
@@ -562,13 +590,28 @@ export function useGameLogic(roomCode, userId, roomData = null) {
       'CARAMELO': 'CARAMELO'
     };
     
-    const hasAllIngredients = order.ingredients.every((ingredient) => {
-      const ingredientType = ingredientMap[ingredient] || ingredient.toUpperCase();
-      const hasIt = inventory[ingredientType] && inventory[ingredientType] > 0;
-      return hasIt;
-    });
+    const missingOrders = [];
     
-    return hasAllIngredients;
+    // Validar cada orden seleccionada
+    for (const order of selectedOrders) {
+      const orderMissing = [];
+      
+      for (const ingredient of order.ingredients) {
+        const ingredientType = ingredientMap[ingredient] || ingredient.toUpperCase();
+        if (!inventory[ingredientType] || inventory[ingredientType] <= 0) {
+          orderMissing.push(ingredient);
+        } else {
+          // Simular consumo para validación de siguientes órdenes
+          inventory[ingredientType] -= 1;
+        }
+      }
+      
+      if (orderMissing.length > 0) {
+        missingOrders.push({ orderName: order.name, missing: orderMissing });
+      }
+    }
+    
+    return { valid: missingOrders.length === 0, missingOrders };
   };
 
   const handleFinalizeTurn = () => {
@@ -590,7 +633,7 @@ export function useGameLogic(roomCode, userId, roomData = null) {
     setSelectedPiece(null);
     setPossibleMoves([]);
     setIsExchangeMode(false);
-    setSelectedOrderCard(null);
+    setSelectedOrderCards([]);
     
     // 1️⃣ Enviar END_TURN primero
     if (gameWebSocketService.isConnected() && currentPlayerId) {
@@ -623,95 +666,106 @@ export function useGameLogic(roomCode, userId, roomData = null) {
 
   const handleMainButtonPress = () => {
     if (isExchangeMode) {
-      if (!selectedOrderCard) {
-        showModal('Selecciona una orden', 'Debes marcar una orden en tu tarjeta para canjear tus ingredientes por puntos.', 'info', () => {}, 'OK', () => { handleFinalizeTurn(); }, 'Finalizar turno');
+      if (selectedOrderCards.length === 0) {
+        showModal('Selecciona órdenes', 'Debes marcar al menos una orden en tu tarjeta para canjear tus ingredientes por puntos.', 'info', () => {}, 'OK', () => { handleFinalizeTurn(); }, 'Finalizar turno');
         return;
       }
-      const hasIngredients = validateIngredientsForOrder();
-      if (hasIngredients) {
-        const currentPlayerKey = gameState.currentTurn === 1 ? 'player1' : 'player2';
-        const currentPlayer = gameState[currentPlayerKey];
-        const currentPlayerId = gameState.currentTurn === 1 ? roomData?.creatorId : roomData?.opponentId;
-        const order = currentPlayer.order;
-        // Mapeo SIN acentos - los ingredientes pueden venir con o sin acento
-        const ingredientMap = { 
-          'Café': 'CAFE', 
-          'Cafe': 'CAFE',
-          'CAFÉ': 'CAFE',
-          'CAFE': 'CAFE',
-          'Leche': 'LECHE',
-          'LECHE': 'LECHE',
-          'Agua': 'AGUA',
-          'AGUA': 'AGUA',
-          'Caramelo': 'CARAMELO',
-          'CARAMELO': 'CARAMELO'
+      
+      const validation = validateIngredientsForOrders();
+      
+      if (!validation.valid) {
+        // Mostrar mensaje de error con detalles de qué órdenes no se pueden completar
+        const errorMessages = validation.missingOrders.map(item => 
+          `${item.orderName}: Faltan ${item.missing.join(', ')}`
+        ).join('\n');
+        
+        showModal(
+          'Ingredientes insuficientes', 
+          `No puedes completar las siguientes órdenes:\n\n${errorMessages}\n\nDeselecciona las órdenes que no puedes completar o consigue más ingredientes.`, 
+          'error',
+          null,
+          'OK'
+        );
+        return;
+      }
+      
+      // Si la validación pasó, procesar todas las órdenes seleccionadas
+      const currentPlayerKey = gameState.currentTurn === 1 ? 'player1' : 'player2';
+      const currentPlayer = gameState[currentPlayerKey];
+      const currentPlayerId = gameState.currentTurn === 1 ? roomData?.creatorId : roomData?.opponentId;
+      
+      // Mapeo SIN acentos
+      const ingredientMap = { 
+        'Café': 'CAFE', 
+        'Cafe': 'CAFE',
+        'CAFÉ': 'CAFE',
+        'CAFE': 'CAFE',
+        'Leche': 'LECHE',
+        'LECHE': 'LECHE',
+        'Agua': 'AGUA',
+        'AGUA': 'AGUA',
+        'Caramelo': 'CARAMELO',
+        'CARAMELO': 'CARAMELO'
+      };
+      
+      // Obtener las órdenes seleccionadas
+      const selectedOrders = currentPlayer.orders.filter(o => selectedOrderCards.includes(o.id));
+      
+      // Calcular puntos totales y actualizar inventario
+      let totalPoints = 0;
+      const updatedInventory = { ...currentPlayer.inventory };
+      
+      selectedOrders.forEach(order => {
+        totalPoints += order.points;
+        order.ingredients.forEach(ingredient => {
+          const ingredientType = ingredientMap[ingredient] || ingredient.toUpperCase();
+          updatedInventory[ingredientType] -= 1;
+        });
+      });
+      
+      // Generar órdenes únicas para reemplazar las completadas (mantener siempre 3)
+      const remainingOrders = currentPlayer.orders.filter(o => !selectedOrderCards.includes(o.id));
+      const ordersNeeded = 3 - remainingOrders.length;
+      const newOrders = generateUniqueOrders(ordersNeeded);
+        
+      // Enviar evento TRADE con todas las órdenes completadas
+      if (gameWebSocketService.isConnected() && currentPlayerId) {
+        gameWebSocketService.sendTrade(
+          currentPlayerId,
+          selectedOrders,      // Array de todas las órdenes completadas
+          totalPoints,         // Puntos totales ganados (para que el backend lo procese)
+          newOrders,           // Array de nuevas órdenes generadas
+          updatedInventory     // Inventario actualizado
+        );
+      }
+      
+      // Actualizar estado local SOLO con inventario y órdenes
+      // El score lo actualizará el backend y llegará por WebSocket
+      setGameState((prev) => {
+        const updatedPlayer = {
+          ...prev[currentPlayerKey],
+          // NO actualizar score aquí - dejar que el backend lo haga
+          orders: [...remainingOrders, ...newOrders],
+          inventory: updatedInventory,
         };
         
-        // Generar nueva orden UNA SOLA VEZ aquí
-        const newOrder = generateRandomOrder();
-        
-        // Enviar UN SOLO evento TRADE cuando se completa la orden completa
-        if (gameWebSocketService.isConnected() && currentPlayerId) {
-          // Mapear el ingrediente a su forma SIN ACENTO antes de enviar al backend
-          const firstIngredient = order.ingredients[0] || 'Café';
-          const mappedIngredient = ingredientMap[firstIngredient] || firstIngredient.toUpperCase();
-          
-          gameWebSocketService.sendTrade(
-            currentPlayerId, 
-            mappedIngredient, // Enviar "CAFE" en vez de "Café"
-            order, 
-            true, // Es completar orden
-            order.points, // Puntos ganados
-            newOrder // La misma nueva orden que usaremos localmente
-          );
-        }
-        
-        // Actualizar inventario (restar ingredientes usados)
-        const updatedInventory = { ...currentPlayer.inventory };
-        order.ingredients.forEach((ingredient) => {
-          const ingredientType = ingredientMap[ingredient] || ingredient.toUpperCase();
-          
-          if (updatedInventory[ingredientType] > 0) {
-            updatedInventory[ingredientType] -= 1;
-          }
-        });
-        
-        // Calcular nuevo score ACUMULATIVO (NO resetear)
-        const newScore = currentPlayer.score + order.points;
-        
-        setGameState((prev) => {
-          const updatedState = {
-            ...prev,
-            [currentPlayerKey]: {
-              ...prev[currentPlayerKey],
-              score: newScore,  // ACUMULAR score, no resetear
-              inventory: updatedInventory,
-              order: newOrder   // Usar la misma orden que se envió al backend
-            }
-          };
-          
-          // Enviar estado actualizado inmediatamente después del canje usando el estado CORRECTO
-          if (gameWebSocketService.isConnected()) {
-            // SOLO enviar posiciones, turno y grid - NO inventarios ni score
-            const stateToSend = {
-              currentTurn: updatedState.currentTurn,
-              movementCount: movementCount,
-              ingredientGrid: ingredientGrid,
-              playerPositions: playerPositions
-              // NO enviar player1/player2 con inventarios, score u órdenes
-              // El backend ya actualizó todo mediante el evento TRADE
-            };
-            
-            gameWebSocketService.sendGameState(stateToSend);
-          }
-          
-          return updatedState;
-        });
-        
-        showModal('¡Orden canjeada exitosamente!', `Has completado tu orden y ganado ${order.points} puntos.`, 'success', () => { handleFinalizeTurn(); }, 'OK');
-      } else {
-        showModal('Ingredientes insuficientes', 'No tienes todos los ingredientes necesarios para completar esta orden.', 'warning', () => {}, 'OK', () => { handleFinalizeTurn(); }, 'Finalizar turno');
-      }
+        return {
+          ...prev,
+          [currentPlayerKey]: updatedPlayer,
+        };
+      });
+      
+      setSelectedOrderCards([]);
+      setIsExchangeMode(false);
+      
+      const orderNames = selectedOrders.map(o => o.name).join(', ');
+      showModal(
+        '¡Órdenes completadas!', 
+        `¡Has completado ${selectedOrders.length} orden(es): "${orderNames}" y ganado ${totalPoints} puntos en total!`, 
+        'success', 
+        () => { handleFinalizeTurn(); }, 
+        'Finalizar turno'
+      );
     } else {
       showModal('¿Deseas canjear tus ingredientes?', 'Puedes canjear tus ingredientes por puntos o finalizar tu turno directamente.', 'info', () => { setIsExchangeMode(true); }, 'OK', () => { handleFinalizeTurn(); }, 'Finalizar turno');
     }
@@ -740,7 +794,7 @@ export function useGameLogic(roomCode, userId, roomData = null) {
     handleMainButtonPress,
     isExchangeMode,
     handleOrderCardPress,
-    selectedOrderCard,
+    selectedOrderCards,
     modalVisible,
     modalData,
     hideModal

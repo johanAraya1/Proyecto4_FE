@@ -115,13 +115,13 @@ class GameWebSocketService {
   // ============ MÉTODOS DE ENVÍO DE EVENTOS ============
 
   /**
-   * Envía evento de inicialización de cuadrícula
-   * @param {Array} grid - Cuadrícula de ingredientes
+   * Envía evento de inicialización del grid
+   * @param {Array} grid - Grid de ingredientes
    * @param {Object} playerPositions - Posiciones iniciales de los jugadores (opcional)
-   * @param {Object} player1Order - Orden inicial del jugador 1 (opcional)
-   * @param {Object} player2Order - Orden inicial del jugador 2 (opcional)
+   * @param {Array} player1Orders - Array de 1-3 órdenes iniciales del jugador 1 (opcional)
+   * @param {Array} player2Orders - Array de 1-3 órdenes iniciales del jugador 2 (opcional)
    */
-  sendGridInitialization(grid, playerPositions = null, player1Order = null, player2Order = null) {
+  sendGridInitialization(grid, playerPositions = null, player1Orders = null, player2Orders = null) {
     // Función auxiliar para convertir ingredientes de español a códigos
     const ingredientNameToCode = {
       'Café': 'CAFE',
@@ -158,12 +158,12 @@ class GameWebSocketService {
     }
 
     // ⭐ Agregar órdenes de ambos jugadores si se proporcionan
-    if (player1Order) {
-      event.payload.player1_orders = [convertOrderToBackendFormat(player1Order)];
+    if (player1Orders && Array.isArray(player1Orders)) {
+      event.payload.player1Orders = player1Orders.map(convertOrderToBackendFormat);
     }
     
-    if (player2Order) {
-      event.payload.player2_orders = [convertOrderToBackendFormat(player2Order)];
+    if (player2Orders && Array.isArray(player2Orders)) {
+      event.payload.player2Orders = player2Orders.map(convertOrderToBackendFormat);
     }
     
     this.send(event);
@@ -208,22 +208,48 @@ class GameWebSocketService {
   /**
    * Envía evento de canje (trade)
    * @param {number} playerId - ID del jugador
-   * @param {string} ingredient - Ingrediente de referencia
-   * @param {Object} completedOrder - Orden completada
-   * @param {boolean} isOrderComplete - Si se completó una orden completa
-   * @param {number} pointsEarned - Puntos ganados por la orden
-   * @param {Object} newOrder - Nueva orden generada
+   * @param {Array} completedOrders - Array de órdenes completadas
+   * @param {number} totalPoints - Puntos totales ganados
+   * @param {Array} newOrders - Array de 1-3 nuevas órdenes generadas
+   * @param {Object} updatedInventory - Inventario actualizado después del canje
    */
-  sendTrade(playerId, ingredient, completedOrder = null, isOrderComplete = false, pointsEarned = 0, newOrder = null) {
+  sendTrade(playerId, completedOrders = [], totalPoints = 0, newOrders = [], updatedInventory = null) {
+    // Mapeo de ingredientes para el backend
+    const ingredientNameToCode = {
+      'Café': 'CAFE',
+      'Cafe': 'CAFE',
+      'CAFÉ': 'CAFE',
+      'Leche': 'LECHE',
+      'Agua': 'AGUA',
+      'Caramelo': 'CARAMELO'
+    };
+    
+    // Convertir órdenes completadas al formato del backend
+    const convertOrderToBackendFormat = (order) => {
+      if (!order) return null;
+      
+      return {
+        id: order.id,
+        recipe: order.name,
+        ingredients: order.ingredients.map(ingredient => 
+          ingredientNameToCode[ingredient] || ingredient.toUpperCase()
+        ),
+        reward: order.points
+      };
+    };
+    
+    // Convertir nuevas órdenes al formato del backend
+    const formattedNewOrders = newOrders.map(convertOrderToBackendFormat);
+    const formattedCompletedOrders = completedOrders.map(convertOrderToBackendFormat);
+    
     const event = {
       type: 'TRADE',
       payload: {
         playerId: playerId,
-        ingredient: ingredient,
-        completedOrder: isOrderComplete,  // ⭐ Indica si se completó una orden
-        pointsEarned: pointsEarned,       // ⭐ Puntos ganados
-        newOrder: newOrder,               // ⭐ Nueva orden generada
-        order: completedOrder             // Orden que se completó
+        completedOrders: formattedCompletedOrders,  // ⭐ Array de órdenes completadas
+        totalPoints: totalPoints,                    // ⭐ Puntos totales ganados
+        newOrders: formattedNewOrders,               // ⭐ Array de nuevas órdenes
+        updatedInventory: updatedInventory           // ⭐ Inventario actualizado
       }
     };
     

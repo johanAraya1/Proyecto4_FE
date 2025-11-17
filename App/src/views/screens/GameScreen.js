@@ -56,7 +56,7 @@ const GameScreen = ({ navigation, route }) => {
     handleMainButtonPress,
     isExchangeMode,
     handleOrderCardPress,
-    selectedOrderCard,
+    selectedOrderCards,
     modalVisible,
     modalData,
     hideModal,
@@ -76,6 +76,12 @@ const GameScreen = ({ navigation, route }) => {
     }
     return player.name;
   };
+  
+  // ✅ Determinar si es mi turno
+  const isPlayer1 = user?.id === roomData?.creatorId;
+  const isPlayer2 = user?.id === roomData?.opponentId;
+  const myTurn = isPlayer1 ? 1 : isPlayer2 ? 2 : null;
+  const isMyTurn = gameState.currentTurn === myTurn;
 
   // Maneja la salida del juego
 
@@ -102,23 +108,25 @@ const GameScreen = ({ navigation, route }) => {
       player: gameState.player1,
       playerNumber: 1,
       disabled: gameState.currentTurn !== 1,
-      order: gameState.player1.order,
+      orders: gameState.player1.orders,
       inventory: gameState.player1.inventory,
       isOrderCardTouchable: isExchangeMode && gameState.currentTurn === 1,
-      isOrderCardSelected: selectedOrderCard === 'player1',
-      onOrderCardPress: () => handleOrderCardPress(1),
+      selectedOrderIds: selectedOrderCards,
+      onOrderCardPress: handleOrderCardPress,
+      isMobile: isMobile, // Agregar prop isMobile
     },
     {
       player: gameState.player2,
       playerNumber: 2,
       disabled: gameState.currentTurn !== 2,
-      order: gameState.player2.order,
+      orders: gameState.player2.orders,
       inventory: gameState.player2.inventory,
       isOrderCardTouchable: isExchangeMode && gameState.currentTurn === 2,
-      isOrderCardSelected: selectedOrderCard === 'player2',
-      onOrderCardPress: () => handleOrderCardPress(2),
+      selectedOrderIds: selectedOrderCards,
+      onOrderCardPress: handleOrderCardPress,
+      isMobile: isMobile, // Agregar prop isMobile
     },
-  ], [gameState, isExchangeMode, selectedOrderCard]);
+  ], [gameState, isExchangeMode, selectedOrderCards, handleOrderCardPress, isMobile]);
 
 
 
@@ -181,11 +189,12 @@ const GameScreen = ({ navigation, route }) => {
                   player={gameState.player1}
                   playerNumber={1}
                   disabled={gameState.currentTurn !== 1}
-                  order={gameState.player1.order}
+                  orders={gameState.player1.orders}
                   inventory={gameState.player1.inventory}
                   isOrderCardTouchable={isExchangeMode && gameState.currentTurn === 1}
-                  isOrderCardSelected={selectedOrderCard === 'player1'}
-                  onOrderCardPress={() => handleOrderCardPress(1)}
+                  selectedOrderIds={selectedOrderCards}
+                  onOrderCardPress={handleOrderCardPress}
+                  isMobile={false}
                 />
               </View>
               {/* Columna 2: Cuadrícula */}
@@ -205,11 +214,12 @@ const GameScreen = ({ navigation, route }) => {
                   player={gameState.player2}
                   playerNumber={2}
                   disabled={gameState.currentTurn !== 2}
-                  order={gameState.player2.order}
+                  orders={gameState.player2.orders}
                   inventory={gameState.player2.inventory}
                   isOrderCardTouchable={isExchangeMode && gameState.currentTurn === 2}
-                  isOrderCardSelected={selectedOrderCard === 'player2'}
-                  onOrderCardPress={() => handleOrderCardPress(2)}
+                  selectedOrderIds={selectedOrderCards}
+                  onOrderCardPress={handleOrderCardPress}
+                  isMobile={false}
                 />
               </View>
             </View>
@@ -246,24 +256,32 @@ const GameScreen = ({ navigation, route }) => {
             <Text style={{ marginBottom: 8, fontWeight: 'bold', color: '#6F4E37' }}>
               Movimientos: {movementCount}/3
             </Text>
-            <TouchableOpacity
-              style={[
-                GameScreenStyles.finalizeTurnButton,
-                (movementCount === 0 || arePlayersOnSamePosition()) && GameScreenStyles.finalizeTurnButtonDisabled,
-              ]}
-              disabled={movementCount === 0 || arePlayersOnSamePosition()}
-              onPress={handleMainButtonPress}
-            >
-              <Text style={[
-                GameScreenStyles.finalizeTurnButtonText,
-                (movementCount === 0 || arePlayersOnSamePosition()) && GameScreenStyles.finalizeTurnButtonTextDisabled,
-              ]}>
-                {isExchangeMode ? 'Canjear ingredientes' : 'Finalizar turno'}
-              </Text>
-            </TouchableOpacity>
-            {arePlayersOnSamePosition() && (
-              <Text style={{ marginTop: 8, color: '#DC3545', fontSize: 12, textAlign: 'center' }}>
-                No puedes terminar tu turno en la misma posición que tu oponente
+            {isMyTurn ? (
+              <>
+                <TouchableOpacity
+                  style={[
+                    GameScreenStyles.finalizeTurnButton,
+                    (movementCount === 0 || arePlayersOnSamePosition()) && GameScreenStyles.finalizeTurnButtonDisabled,
+                  ]}
+                  disabled={movementCount === 0 || arePlayersOnSamePosition()}
+                  onPress={handleMainButtonPress}
+                >
+                  <Text style={[
+                    GameScreenStyles.finalizeTurnButtonText,
+                    (movementCount === 0 || arePlayersOnSamePosition()) && GameScreenStyles.finalizeTurnButtonTextDisabled,
+                  ]}>
+                    {isExchangeMode ? 'Canjear ingredientes' : 'Finalizar turno'}
+                  </Text>
+                </TouchableOpacity>
+                {arePlayersOnSamePosition() && (
+                  <Text style={{ marginTop: 8, color: '#DC3545', fontSize: 12, textAlign: 'center' }}>
+                    No puedes terminar tu turno en la misma posición que tu oponente
+                  </Text>
+                )}
+              </>
+            ) : (
+              <Text style={{ marginTop: 8, color: '#888', fontSize: 14, textAlign: 'center', fontStyle: 'italic' }}>
+                Turno del oponente
               </Text>
             )}
           </View>

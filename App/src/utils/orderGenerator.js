@@ -91,10 +91,33 @@ export const generateRandomOrder = () => {
     name: drinkName,
     ingredients: selectedIngredients,
     points,
-    id: Date.now()
+    id: Date.now() + Math.random() // Asegurar IDs únicos
   };
 
   return order;
+};
+
+/**
+ * Genera un array de órdenes únicas
+ * @param {number} count - Número de órdenes a generar
+ * @returns {Array} Array de órdenes únicas
+ */
+export const generateUniqueOrders = (count = 3) => {
+  const orders = [];
+  const usedCombinations = new Set();
+  
+  while (orders.length < count) {
+    const order = generateRandomOrder();
+    const combination = order.ingredients.sort().join(',');
+    
+    // Solo agregar si la combinación es única
+    if (!usedCombinations.has(combination)) {
+      usedCombinations.add(combination);
+      orders.push(order);
+    }
+  }
+  
+  return orders;
 };
 
 /**
