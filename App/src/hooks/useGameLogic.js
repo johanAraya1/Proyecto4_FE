@@ -58,8 +58,6 @@ export function useGameLogic(roomCode, userId, roomData = null) {
       
       // SINCRONIZACIÓN EN TIEMPO REAL: Actualizar estado del juego
       gameWebSocketService.on('gameStateUpdate', (payload) => {
-        console.log('🔷 gameStateUpdate received:', JSON.stringify(payload, null, 2));
-        
         if (!payload.gameState) return;
         
         const backendState = payload.gameState;
@@ -68,27 +66,21 @@ export function useGameLogic(roomCode, userId, roomData = null) {
         const convertOrderFromBackendFormat = (backendOrder) => {
           if (!backendOrder) return null;
           
-          console.log('🔄 Converting order:', backendOrder);
-          
           // Si ya tiene el formato del frontend (name, points), devolverlo tal como está
           if (backendOrder.name && backendOrder.points !== undefined) {
-            console.log('✅ Already frontend format');
             return backendOrder;
           }
           
           // Si tiene formato del backend (recipe, reward), convertir al formato del frontend
           if (backendOrder.recipe && backendOrder.reward !== undefined) {
-            const converted = {
+            return {
               id: backendOrder.id,
               name: backendOrder.recipe,
               points: backendOrder.reward,
               ingredients: backendOrder.ingredients
             };
-            console.log('✅ Converted to frontend format:', converted);
-            return converted;
           }
           
-          console.log('⚠️ Unknown format, returning as-is');
           return backendOrder;
         };
         
@@ -118,9 +110,7 @@ export function useGameLogic(roomCode, userId, roomData = null) {
           
           // Actualizar player1 si vienen sus datos
           if (backendState.player1) {
-            console.log('🔷 Updating player1, orders:', backendState.player1.orders);
             const convertedOrders = backendState.player1.orders ? backendState.player1.orders.map(convertOrderFromBackendFormat) : prev.player1.orders;
-            console.log('🔷 Converted player1 orders:', convertedOrders);
             
             newState.player1 = {
               ...prev.player1,
@@ -134,9 +124,7 @@ export function useGameLogic(roomCode, userId, roomData = null) {
           
           // Actualizar player2 si vienen sus datos
           if (backendState.player2) {
-            console.log('🔷 Updating player2, orders:', backendState.player2.orders);
             const convertedOrders = backendState.player2.orders ? backendState.player2.orders.map(convertOrderFromBackendFormat) : prev.player2.orders;
-            console.log('🔷 Converted player2 orders:', convertedOrders);
             
             newState.player2 = {
               ...prev.player2,
@@ -148,7 +136,6 @@ export function useGameLogic(roomCode, userId, roomData = null) {
             };
           }
           
-          console.log('🔥 Final newState:', JSON.stringify(newState, null, 2));
           return newState;
         });
       });
