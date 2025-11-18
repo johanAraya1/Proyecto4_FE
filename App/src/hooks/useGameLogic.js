@@ -10,22 +10,21 @@ export function useGameLogic(roomCode, userId, roomData = null) {
   const [error, setError] = useState(null);
   const [ingredientGrid, setIngredientGrid] = useState(null);
   
-  // Generar 3 órdenes únicas iniciales para cada jugador
-  const generateInitialOrders = () => generateUniqueOrders(3);
-  
   const [gameState, setGameState] = useState({
     currentTurn: 1,
     player1: {
       name: null,
       score: 0,
-      orders: generateInitialOrders(),
-      inventory: { AGUA: 0, CAFE: 0, LECHE: 0, CARAMELO: 0 }
+      orders: generateUniqueOrders(1),  // ⭐ Jugador 1 empieza con 1 orden
+      inventory: { AGUA: 0, CAFE: 0, LECHE: 0, CARAMELO: 0 },
+      turnsCompleted: 1  // ⭐ Jugador 1 ya está en su turno 1
     },
     player2: {
       name: null,
       score: 0,
-      orders: generateInitialOrders(),
-      inventory: { AGUA: 0, CAFE: 0, LECHE: 0, CARAMELO: 0 }
+      orders: [],  // ⭐ Jugador 2 empieza sin órdenes (aún no ha jugado)
+      inventory: { AGUA: 0, CAFE: 0, LECHE: 0, CARAMELO: 0 },
+      turnsCompleted: 0  // ⭐ Jugador 2 aún no ha completado turnos
     }
   });
 
@@ -59,18 +58,99 @@ export function useGameLogic(roomCode, userId, roomData = null) {
       
       // SINCRONIZACIÓN EN TIEMPO REAL: Actualizar estado del juego
       gameWebSocketService.on('gameStateUpdate', (payload) => {
-        if (payload.gameState) {
-          // Solo actualizar posiciones y movementCount
-          // NO actualizar currentTurn aquí para evitar conflictos con turnChanged
+        console.log('🔷 gameStateUpdate received:', JSON.stringify(payload, null, 2));
+        
+        if (!payload.gameState) return;
+        
+        const backendState = payload.gameState;
+        
+        // Función auxiliar para convertir orden del backend al formato del frontend
+        const convertOrderFromBackendFormat = (backendOrder) => {
+          if (!backendOrder) return null;
           
-          if (payload.gameState.playerPositions) {
-            setPlayerPositions(payload.gameState.playerPositions);
+          console.log('🔄 Converting order:', backendOrder);
+          
+          // Si ya tiene el formato del frontend (name, points), devolverlo tal como está
+          if (backendOrder.name && backendOrder.points !== undefined) {
+            console.log('✅ Already frontend format');
+            return backendOrder;
           }
           
-          if (payload.gameState.movementCount !== undefined) {
-            setMovementCount(payload.gameState.movementCount);
+          // Si tiene formato del backend (recipe, reward), convertir al formato del frontend
+          if (backendOrder.recipe && backendOrder.reward !== undefined) {
+            const converted = {
+              id: backendOrder.id,
+              name: backendOrder.recipe,
+              points: backendOrder.reward,
+              ingredients: backendOrder.ingredients
+            };
+            console.log('✅ Converted to frontend format:', converted);
+            return converted;
           }
+          
+          console.log('⚠️ Unknown format, returning as-is');
+          return backendOrder;
+        };
+        
+        // Actualizar posiciones si vienen
+        if (backendState.playerPositions) {
+          setPlayerPositions(backendState.playerPositions);
         }
+        
+        // Actualizar movementCount si viene
+        if (backendState.movementCount !== undefined) {
+          setMovementCount(backendState.movementCount);
+        }
+        
+        // Actualizar ingredientGrid si viene
+        if (backendState.ingredientGrid) {
+          setIngredientGrid(backendState.ingredientGrid);
+        }
+        
+        // Actualizar estado del juego (currentTurn y datos de jugadores)
+        setGameState((prev) => {
+          const newState = { ...prev };
+          
+          // Actualizar currentTurn si viene
+          if (backendState.currentTurn !== undefined) {
+            newState.currentTurn = backendState.currentTurn;
+          }
+          
+          // Actualizar player1 si vienen sus datos
+          if (backendState.player1) {
+            console.log('🔷 Updating player1, orders:', backendState.player1.orders);
+            const convertedOrders = backendState.player1.orders ? backendState.player1.orders.map(convertOrderFromBackendFormat) : prev.player1.orders;
+            console.log('🔷 Converted player1 orders:', convertedOrders);
+            
+            newState.player1 = {
+              ...prev.player1,
+              name: backendState.player1.name || prev.player1.name,
+              score: backendState.player1.score !== undefined ? backendState.player1.score : prev.player1.score,
+              inventory: backendState.player1.inventory || prev.player1.inventory,
+              turnsCompleted: backendState.player1.turnsCompleted !== undefined ? backendState.player1.turnsCompleted : prev.player1.turnsCompleted,
+              orders: convertedOrders
+            };
+          }
+          
+          // Actualizar player2 si vienen sus datos
+          if (backendState.player2) {
+            console.log('🔷 Updating player2, orders:', backendState.player2.orders);
+            const convertedOrders = backendState.player2.orders ? backendState.player2.orders.map(convertOrderFromBackendFormat) : prev.player2.orders;
+            console.log('🔷 Converted player2 orders:', convertedOrders);
+            
+            newState.player2 = {
+              ...prev.player2,
+              name: backendState.player2.name || prev.player2.name,
+              score: backendState.player2.score !== undefined ? backendState.player2.score : prev.player2.score,
+              inventory: backendState.player2.inventory || prev.player2.inventory,
+              turnsCompleted: backendState.player2.turnsCompleted !== undefined ? backendState.player2.turnsCompleted : prev.player2.turnsCompleted,
+              orders: convertedOrders
+            };
+          }
+          
+          console.log('🔥 Final newState:', JSON.stringify(newState, null, 2));
+          return newState;
+        });
       });
       
       // SINCRONIZACIÓN EN TIEMPO REAL: Ver movimientos del oponente
@@ -306,15 +386,17 @@ export function useGameLogic(roomCode, userId, roomData = null) {
           player1: {
             name: player1Name,
             score: loadedState.player1?.score || 0,
-            orders: loadedState.player1?.orders ? loadedState.player1.orders.map(convertOrderFromBackendFormat) : generateUniqueOrders(3),
+            orders: loadedState.player1?.orders ? loadedState.player1.orders.map(convertOrderFromBackendFormat) : generateUniqueOrders(1),
             inventory: sanitizeInventory(loadedState.player1?.inventory),
+            turnsCompleted: loadedState.player1?.turnsCompleted !== undefined ? loadedState.player1.turnsCompleted : 1,  // ⭐ Default 1 para player1
             elo: 1500
           },
           player2: {
             name: player2Name,
             score: loadedState.player2?.score || 0,
-            orders: loadedState.player2?.orders ? loadedState.player2.orders.map(convertOrderFromBackendFormat) : generateUniqueOrders(3),
+            orders: loadedState.player2?.orders ? loadedState.player2.orders.map(convertOrderFromBackendFormat) : [],
             inventory: sanitizeInventory(loadedState.player2?.inventory),
+            turnsCompleted: loadedState.player2?.turnsCompleted !== undefined ? loadedState.player2.turnsCompleted : 0,  // ⭐ Default 0 para player2
             elo: 1500
           }
         });
@@ -622,11 +704,17 @@ export function useGameLogic(roomCode, userId, roomData = null) {
     const newTurn = currentPlayerNum === 1 ? 2 : 1;
     const newPlayerId = newTurn === 1 ? roomData?.creatorId : roomData?.opponentId;
     
-    // ACTUALIZACIÓN LOCAL INMEDIATA (antes de enviar al servidor)
-    // Esto previene el "lag" y hace que la UI responda inmediatamente
+    const currentPlayerKey = currentPlayerNum === 1 ? 'player1' : 'player2';
+    
+    // ⭐ ACTUALIZACIÓN LOCAL: Solo cambiar turno e incrementar turnsCompleted
+    // El backend agregará las órdenes y las recibirán por WebSocket
     setGameState((prev) => ({
       ...prev,
-      currentTurn: newTurn
+      currentTurn: newTurn,
+      [currentPlayerKey]: {
+        ...prev[currentPlayerKey],
+        turnsCompleted: prev[currentPlayerKey].turnsCompleted + 1
+      }
     }));
     
     setMovementCount(0);
@@ -723,37 +811,31 @@ export function useGameLogic(roomCode, userId, roomData = null) {
         });
       });
       
-      // Generar órdenes únicas para reemplazar las completadas (mantener siempre 3)
+      // ⭐ El backend calculará cuántas órdenes generar según turnsCompleted
+      // Aquí solo preparamos los datos para enviar
       const remainingOrders = currentPlayer.orders.filter(o => !selectedOrderCards.includes(o.id));
-      const ordersNeeded = 3 - remainingOrders.length;
-      const newOrders = generateUniqueOrders(ordersNeeded);
         
-      // Enviar evento TRADE con todas las órdenes completadas
+      // ⭐ Enviar evento TRADE - el backend generará las nuevas órdenes
       if (gameWebSocketService.isConnected() && currentPlayerId) {
         gameWebSocketService.sendTrade(
           currentPlayerId,
           selectedOrders,      // Array de todas las órdenes completadas
-          totalPoints,         // Puntos totales ganados (para que el backend lo procese)
-          newOrders,           // Array de nuevas órdenes generadas
+          totalPoints,         // Puntos totales ganados
+          [],                  // ⭐ No enviar newOrders - el backend las genera
           updatedInventory     // Inventario actualizado
         );
       }
       
-      // Actualizar estado local SOLO con inventario y órdenes
-      // El score lo actualizará el backend y llegará por WebSocket
-      setGameState((prev) => {
-        const updatedPlayer = {
+      // ⭐ Actualizar estado local SOLO con inventario
+      // Las órdenes y score llegarán del backend por WebSocket
+      setGameState((prev) => ({
+        ...prev,
+        [currentPlayerKey]: {
           ...prev[currentPlayerKey],
-          // NO actualizar score aquí - dejar que el backend lo haga
-          orders: [...remainingOrders, ...newOrders],
+          orders: remainingOrders,  // Solo quitar las completadas
           inventory: updatedInventory,
-        };
-        
-        return {
-          ...prev,
-          [currentPlayerKey]: updatedPlayer,
-        };
-      });
+        }
+      }));
       
       setSelectedOrderCards([]);
       setIsExchangeMode(false);

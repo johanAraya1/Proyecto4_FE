@@ -62,10 +62,10 @@ const PlayerCard = ({
               borderColor: disabled ? '#E0E0E0' : highlightBorderColor,
               alignItems: 'center',
               justifyContent: 'center',
-              // Móvil: card pequeño y fijo a la izquierda
-              width: isMobile ? 80 : undefined,
-              minHeight: isMobile ? 100 : 80,
-              maxHeight: isMobile ? 120 : undefined,
+              // Móvil: card más ancho para mejor visibilidad
+              width: isMobile ? 100 : undefined,
+              minHeight: isMobile ? 110 : 80,
+              maxHeight: isMobile ? 140 : undefined,
               alignSelf: 'flex-start',
               flexShrink: 0, // No se encoge
             },
@@ -76,12 +76,12 @@ const PlayerCard = ({
           </View>
           <View style={styles.playerDetails}>
             <Text style={{ 
-              fontSize: isMobile ? 12 : 14, 
+              fontSize: isMobile ? 13 : 14, 
               fontWeight: '700', 
               color: cardTextColor, 
               marginBottom: 2, 
               textAlign: 'center',
-              lineHeight: 14,
+              lineHeight: 15,
             }}>
               {player.name || `J${playerNumber}`}
             </Text>
@@ -95,10 +95,10 @@ const PlayerCard = ({
               Puntaje:
             </Text>
             <Text style={{ 
-              fontSize: isMobile ? 11 : 13, 
+              fontSize: isMobile ? 16 : 18, 
               color: cardTextColor, 
               textAlign: 'center', 
-              fontWeight: '600',
+              fontWeight: '700',
             }}>
               {player.score ?? 0}
             </Text>
@@ -138,7 +138,7 @@ const PlayerCard = ({
                 onPress={() => onOrderCardPress(order.id)}
                 style={{
                   backgroundColor: selectedOrderIds.includes(order.id) ? selectedBgColor : '#FFFFFF',
-                  padding: 8,
+                  padding: 6,
                   borderRadius: 8,
                   borderWidth: selectedOrderIds.includes(order.id) ? 2 : 1.5,
                   borderColor: selectedOrderIds.includes(order.id) ? selectedBorderColor : '#E0E0E0',
@@ -152,7 +152,7 @@ const PlayerCard = ({
                 {/* Header: Orden # y Puntos en una línea */}
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                   <Text style={{
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: '700',
                     color: selectedOrderIds.includes(order.id) ? '#222' : '#444',
                     textTransform: 'uppercase',
@@ -160,17 +160,17 @@ const PlayerCard = ({
                   }}>Orden {index + 1}</Text>
                   <View style={{
                     backgroundColor: '#FFD166',
-                    paddingHorizontal: 6,
+                    paddingHorizontal: 5,
                     paddingVertical: 2,
-                    borderRadius: 6,
+                    borderRadius: 5,
                   }}>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#6F4E37' }}>+{order.points}</Text>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#6F4E37' }}>+{order.points}</Text>
                   </View>
                 </View>
 
                 {/* Nombre de la bebida */}
                 <Text style={{ 
-                  fontSize: 13, 
+                  fontSize: 12, 
                   fontWeight: '600', 
                   color: '#333',
                   marginBottom: 6,
@@ -274,9 +274,9 @@ const PlayerCard = ({
 
 const styles = StyleSheet.create({
   playerAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 4,
