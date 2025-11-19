@@ -60,7 +60,7 @@ const GameScreen = ({ navigation, route }) => {
     modalVisible,
     modalData,
     hideModal,
-  } = useGameLogic(roomCode, user?.id, roomData);
+  } = useGameLogic(roomCode, user?.id, roomData, navigation);
 
   // Función para obtener nombre a mostrar
 

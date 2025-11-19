@@ -107,6 +107,9 @@ class GameWebSocketService {
       case 'GRID_INITIALIZED':
         this.emit('gridInitialized', payload);
         break;
+      case 'GAME_ENDED':
+        this.emit('gameEnded', payload);
+        break;
       default:
         this.emit('message', data);
     }

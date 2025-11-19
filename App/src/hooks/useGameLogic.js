@@ -5,7 +5,7 @@ import useCustomModal from './useCustomModal';
 import { gameWebSocketService } from '../services/gameWebSocketService';
 import { roomService } from '../services/roomService';
 
-export function useGameLogic(roomCode, userId, roomData = null) {
+export function useGameLogic(roomCode, userId, roomData = null, navigation = null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [ingredientGrid, setIngredientGrid] = useState(null);
@@ -61,6 +61,17 @@ export function useGameLogic(roomCode, userId, roomData = null) {
         if (!payload.gameState) return;
         
         const backendState = payload.gameState;
+        
+        // ⭐ Detectar penalización y mostrar modal
+        if (payload.penalty && payload.penalty.playerId === userId) {
+          showModal(
+            '⚠️ Penalización',
+            `${payload.penalty.message}\n\nSe han deducido ${payload.penalty.amount} puntos de tu marcador.`,
+            'warning',
+            null,
+            'Entendido'
+          );
+        }
         
         // Función auxiliar para convertir orden del backend al formato del frontend
         const convertOrderFromBackendFormat = (backendOrder) => {
@@ -266,6 +277,45 @@ export function useGameLogic(roomCode, userId, roomData = null) {
               currentTurn: payload.turnNumber
             };
           });
+        }
+      });
+      
+      // GAME ENDED: Detectar fin del juego y mostrar modal de victoria/derrota
+      gameWebSocketService.on('gameEnded', (payload) => {
+        if (!payload) return;
+        
+        const isWinner = payload.winnerId === userId;
+        const eloChange = isWinner ? payload.eloChanges.winner : payload.eloChanges.loser;
+        const eloSign = eloChange > 0 ? '+' : '';
+        
+        if (isWinner) {
+          showModal(
+            '🏆 ¡Victoria!',
+            `¡Felicidades! Has ganado la partida con ${payload.winnerScore} puntos.\n\nTu oponente obtuvo ${payload.loserScore} puntos.\n\nELO: ${eloSign}${eloChange}`,
+            'success',
+            () => {
+              hideModal();
+              // Navegar de vuelta al dashboard después de cerrar el modal
+              if (navigation) {
+                navigation.navigate('Dashboard');
+              }
+            },
+            'Volver al menú'
+          );
+        } else {
+          showModal(
+            '😔 Derrota',
+            `Tu oponente ha ganado la partida con ${payload.winnerScore} puntos.\n\nObtuviste ${payload.loserScore} puntos.\n\nELO: ${eloSign}${eloChange}`,
+            'error',
+            () => {
+              hideModal();
+              // Navegar de vuelta al dashboard después de cerrar el modal
+              if (navigation) {
+                navigation.navigate('Dashboard');
+              }
+            },
+            'Volver al menú'
+          );
         }
       });
       
