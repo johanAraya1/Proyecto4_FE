@@ -82,6 +82,36 @@ const GameScreenStyles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  waitingOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.18)',
+    zIndex: 50,
+  },
+  waitingBox: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  waitingText: {
+    color: '#333333',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 
 });
 

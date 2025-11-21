@@ -175,6 +175,7 @@ const GameScreen = ({ navigation, route }) => {
   // Animaciones de transición al cambiar el turno
   const turnAnim = useRef(new Animated.Value(1)).current; // escala
   const accentAnim = useRef(new Animated.Value(0)).current; // overlay opacity
+  const waitAnim = useRef(new Animated.Value(0)).current; // for waiting overlay pulse
 
   useEffect(() => {
     // Ejecutar animación cada vez que cambie el turno
@@ -207,6 +208,28 @@ const GameScreen = ({ navigation, route }) => {
       ]).start();
     }
   }, [gameState?.currentTurn, turnAnim, accentAnim]);
+
+  // Pulse animation for waiting overlay when it's opponent's turn
+  useEffect(() => {
+    let loop;
+    const shouldShowWaiting = !isMyTurn && !loading && !error && ingredientGrid && (myTurn !== null);
+    if (shouldShowWaiting) {
+      waitAnim.setValue(0);
+      loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(waitAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+          Animated.timing(waitAnim, { toValue: 0, duration: 900, useNativeDriver: true }),
+        ])
+      );
+      loop.start();
+    } else {
+      waitAnim.stopAnimation();
+      waitAnim.setValue(0);
+    }
+    return () => {
+      if (loop) loop.stop();
+    };
+  }, [isMyTurn, loading, error, ingredientGrid, myTurn, waitAnim]);
 
   // Memoizar props de jugadores para móvil
   const playerPropsArr = useMemo(() => [
@@ -435,6 +458,15 @@ const GameScreen = ({ navigation, route }) => {
         showCancel={modalData.showCancel}
         cancelText={modalData.cancelText}
       />
+      {/* Indicador de espera cuando no es tu turno */}
+      {(!isMyTurn && !loading && !error && ingredientGrid && (myTurn !== null)) && (
+        <Animated.View style={[GameScreenStyles.waitingOverlay, { opacity: waitAnim.interpolate({ inputRange: [0,1], outputRange: [0.9,1] }) }]} pointerEvents="none">
+          <Animated.View style={[GameScreenStyles.waitingBox, { transform: [{ scale: waitAnim.interpolate({ inputRange: [0,1], outputRange: [0.98,1.02] }) }] }] }>
+            <ActivityIndicator size="small" color="#6F4E37" style={{ marginRight: 8 }} />
+            <Text style={GameScreenStyles.waitingText}>Esperando al oponente...</Text>
+          </Animated.View>
+        </Animated.View>
+      )}
       {/* Onboarding específico de la sala de juego */}
       <OnboardingModal
         visible={showGameOnboarding}
