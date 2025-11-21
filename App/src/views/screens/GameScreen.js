@@ -60,6 +60,7 @@ const GameScreen = ({ navigation, route }) => {
     isExchangeMode,
     handleOrderCardPress,
     selectedOrderCards,
+    pickupEffect,
     modalVisible,
     modalData,
     hideModal,
@@ -301,6 +302,7 @@ const GameScreen = ({ navigation, route }) => {
                   selectedPiece={selectedPiece}
                   possibleMoves={possibleMoves}
                   handleCellPress={handleCellPress}
+                  pickupEffect={pickupEffect}
                   styles={GameScreenStyles}
                 />
               </View>
@@ -334,6 +336,7 @@ const GameScreen = ({ navigation, route }) => {
                   selectedPiece={selectedPiece}
                   possibleMoves={possibleMoves}
                   handleCellPress={handleCellPress}
+                  pickupEffect={pickupEffect}
                   styles={GameScreenStyles}
                 />
               </View>

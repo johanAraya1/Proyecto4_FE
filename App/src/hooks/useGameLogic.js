@@ -38,6 +38,7 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
   const [possibleMoves, setPossibleMoves] = useState([]);
   const [isExchangeMode, setIsExchangeMode] = useState(false);
   const [selectedOrderCards, setSelectedOrderCards] = useState([]);
+  const [pickupEffect, setPickupEffect] = useState(null); // { row, col, type }
   
   const { modalVisible, modalData, showModal, hideModal } = useCustomModal();
   
@@ -546,7 +547,7 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
     }
     
     const ingredient = ingredientGrid[toRow][toCol];
-    const ingredientType = ingredient.type;
+    const ingredientType = ingredient?.type;
     
     // Calcular el nuevo contador de movimientos
     const newMovementCount = movementCount + 1;
@@ -590,6 +591,13 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
     setMovementCount(newMovementCount);
     setGameState(newGameState);
     setPlayerPositions(newPositions);
+
+    // Trigger pickup effect if there was an ingredient (visual feedback)
+    if (ingredientType) {
+      setPickupEffect({ row: toRow, col: toCol, type: ingredientType });
+      // Clear the effect after animation duration
+      setTimeout(() => setPickupEffect(null), 900);
+    }
   };
 
   const resetGame = () => {
@@ -914,6 +922,7 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
     isExchangeMode,
     handleOrderCardPress,
     selectedOrderCards,
+    pickupEffect,
     modalVisible,
     modalData,
     hideModal
