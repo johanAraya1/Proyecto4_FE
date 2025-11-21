@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Platform,
   View,
   Text,
   TouchableOpacity,
@@ -8,6 +9,7 @@ import {
   FlatList,
   RefreshControl,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { useAuth } from '../../controllers/AuthContext';
 import { useRoom } from '../../hooks/useRoom';
@@ -15,6 +17,7 @@ import { CustomModal, BackButton } from '../../components/common';
 import { useCustomModal } from '../../hooks/useCustomModal';
 import { copyToClipboard } from '../../utils/clipboard';
 import { roomService } from '../../services/roomService';
+import useDebounce from '../../hooks/useDebounce';
 import styles from '../../styles/ActiveRoomsScreen.styles';
 
 const ActiveRoomsScreen = ({ navigation }) => {
@@ -22,6 +25,10 @@ const ActiveRoomsScreen = ({ navigation }) => {
   const { getUserRooms, loading, error, userRooms } = useRoom();
   const [refreshing, setRefreshing] = useState(false);
   const [loadingRoom, setLoadingRoom] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [selectedTab, setSelectedTab] = useState('Todas');
+  const [filteredRooms, setFilteredRooms] = useState(userRooms);
+  const debouncedSearch = useDebounce(searchText, 400);
 
   // Hook para modales personalizados
   const {
@@ -229,6 +236,30 @@ const ActiveRoomsScreen = ({ navigation }) => {
     </View>
   );
 
+  /**
+   * Función para filtrar las salas
+   */
+  const filterRooms = (tab) => {
+    switch (tab) {
+      case 'Finalizadas':
+        setFilteredRooms(userRooms.filter(room => room.status === 'finished'));
+        break;
+      case 'Jugando':
+        setFilteredRooms(userRooms.filter(room => room.status === 'playing'));
+        break;
+      case 'En espera':
+        setFilteredRooms(userRooms.filter(room => room.status === 'waiting'));
+        break;
+      default:
+        setFilteredRooms(userRooms);
+    }
+  };
+
+  // Aplicar filtros automáticamente cuando cambien las salas o la pestaña seleccionada
+  useEffect(() => {
+    filterRooms(selectedTab);
+  }, [userRooms, selectedTab]);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -270,11 +301,63 @@ const ActiveRoomsScreen = ({ navigation }) => {
         </View>
       </View>
 
+      {/* Tabs funcionales para filtrar */}
+      <View style={[
+        styles.tabsContainerImproved,
+        Platform.OS === 'web' && styles.tabsContainerWeb,
+      ]}>
+        {['Todas', 'Finalizadas', 'Jugando', 'En espera'].map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            style={[
+              styles.tabButtonImproved,
+              selectedTab === tab && styles.activeTabButtonImproved,
+            ]}
+            onPress={() => {
+              setSelectedTab(tab);
+              filterRooms(tab);
+            }}
+          >
+            <Text
+              style={[
+                styles.tabTextImproved,
+                Platform.OS === 'web' && styles.tabTextWeb,
+                selectedTab === tab && styles.activeTabTextImproved,
+              ]}
+            >
+              {tab}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Campo de búsqueda mejorado */}
+      <View style={styles.searchContainerImproved}>
+        <TextInput
+          style={[
+            styles.searchInputImproved,
+            Platform.OS === 'web' && styles.searchInputWeb,
+          ]}
+          placeholder="🔍 Buscar salas por código"
+          value={searchText}
+          onChangeText={setSearchText}
+        />
+      </View>
+
       {error ? (
         renderErrorState()
       ) : (
         <FlatList
-          data={userRooms}
+          data={filteredRooms.filter(room => {
+            if (!debouncedSearch) return true;
+            const search = debouncedSearch.toLowerCase();
+            return (
+              room.code?.toLowerCase().includes(search) ||
+              room.creatorName?.toLowerCase().includes(search) ||
+              room.opponentName?.toLowerCase().includes(search) ||
+              room.status?.toLowerCase().includes(search)
+            );
+          })}
           renderItem={renderRoomItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[

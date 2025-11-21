@@ -295,6 +295,91 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  // Tabs mejorados
+  tabsContainerImproved: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: COLORS.NEUTRO,
+    borderRadius: 10,
+    marginHorizontal: 16,
+    marginTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+
+  tabButtonImproved: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    marginRight: 8,
+    backgroundColor: 'transparent',
+  },
+
+  activeTabButtonImproved: {
+    backgroundColor: COLORS.BLANCO,
+    borderWidth: 1,
+    borderColor: COLORS.BORDE,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+
+  tabTextImproved: {
+    fontSize: 13,
+    color: COLORS.TEXTO_CLARO,
+    fontWeight: '600',
+  },
+
+  activeTabTextImproved: {
+    color: COLORS.PRINCIPAL,
+    fontWeight: '700',
+  },
+  
+  // Ajustes específicos para Web
+  tabsContainerWeb: {
+    justifyContent: 'center',
+  },
+
+  tabTextWeb: {
+    fontSize: 16,
+  },
+
+  searchInputWeb: {
+    fontSize: 16,
+    paddingVertical: 12,
+    textAlign: 'center',
+  },
+
+  // Buscador mejorado
+  searchContainerImproved: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+
+  searchInputImproved: {
+    backgroundColor: COLORS.BLANCO,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: COLORS.BORDE,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+    textAlign: 'center',
+  },
 });
 
 export default styles;
