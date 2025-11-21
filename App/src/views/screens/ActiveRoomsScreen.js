@@ -19,6 +19,7 @@ import { copyToClipboard } from '../../utils/clipboard';
 import { roomService } from '../../services/roomService';
 import useDebounce from '../../hooks/useDebounce';
 import styles from '../../styles/ActiveRoomsScreen.styles';
+// Platform is already imported from 'react-native' above
 
 /**
  * RoomCard: componente memoizado para tarjetas de sala.
@@ -136,6 +137,7 @@ const ActiveRoomsScreen = ({ navigation }) => {
     loadUserRooms();
   }, []);
 
+
   /**
    * Carga las salas del usuario
    */
@@ -213,6 +215,8 @@ const ActiveRoomsScreen = ({ navigation }) => {
       currentUserId={user?.id}
     />
   ), [playInRoomCb, copyRoomCodeToClipboardCb, loadingRoom, user?.id]);
+
+  
 
   
 
@@ -351,7 +355,7 @@ const ActiveRoomsScreen = ({ navigation }) => {
             styles.searchInputImproved,
             Platform.OS === 'web' && styles.searchInputWeb,
           ]}
-          placeholder="🔍 Buscar salas por código"
+          placeholder={Platform.OS === 'web' ? 'Buscar salas por código' : '🔍 Buscar salas por código'}
           value={searchText}
           onChangeText={setSearchText}
         />
@@ -401,6 +405,7 @@ const ActiveRoomsScreen = ({ navigation }) => {
         onClose={hideModal}
         confirmText={modalData.confirmText}
       />
+      {/* Onboarding moved to GameScreen: not shown here anymore */}
     </SafeAreaView>
   );
 };
