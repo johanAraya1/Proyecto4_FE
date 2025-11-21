@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import {
   Platform,
   View,
@@ -19,6 +19,96 @@ import { copyToClipboard } from '../../utils/clipboard';
 import { roomService } from '../../services/roomService';
 import useDebounce from '../../hooks/useDebounce';
 import styles from '../../styles/ActiveRoomsScreen.styles';
+
+/**
+ * RoomCard: componente memoizado para tarjetas de sala.
+ * Usamos React.memo con una comparación personalizada para evitar re-render
+ * cuando las propiedades principales no cambian.
+ */
+const RoomCard = memo(({ room, onPlay, onCopy, loadingRoom, currentUserId }) => {
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'waiting':
+        return '#FFD166';
+      case 'playing':
+        return '#28A745';
+      case 'finished':
+        return '#6C757D';
+      default:
+        return '#6C757D';
+    }
+  };
+
+  return (
+    <View style={styles.roomCard}>
+      <View style={styles.roomHeader}>
+        <View style={styles.roomCodeContainer}>
+          <Text style={styles.roomCodeLabel}>Código:</Text>
+          <Text style={styles.roomCode}>{room.code}</Text>
+        </View>
+        <View style={styles.statusContainer}>
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: getStatusColor(room.status) },
+            ]}
+          />
+          <Text style={styles.statusText}>{room.getStatusInSpanish()}</Text>
+        </View>
+      </View>
+
+      <View style={styles.roomInfo}>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Jugadores:</Text>
+          <Text style={styles.infoValue}>{room.getPlayerCount()}/2</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Creada:</Text>
+          <Text style={styles.infoValue}>{room.getFormattedCreatedAt()}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Rol:</Text>
+          <Text style={styles.infoValue}>
+            {room.isCreator(currentUserId) ? 'Creador' : 'Participante'}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.roomActions}>
+        {room.isPlaying() ? (
+          <TouchableOpacity
+            style={[styles.playButton, loadingRoom && styles.disabledButton]}
+            onPress={() => onPlay(room)}
+            disabled={loadingRoom}
+          >
+            {loadingRoom ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.playButtonText}>🎮 Jugar</Text>
+            )}
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.copyButton}
+            onPress={() => onCopy(room.code)}
+          >
+            <Text style={styles.copyButtonText}>📋 Copiar</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+}, (prev, next) => {
+  // Comparación ligera: re-render solo si cambian campos relevantes
+  return (
+    prev.room.id === next.room.id &&
+    prev.room.code === next.room.code &&
+    prev.room.status === next.room.status &&
+    prev.room.getPlayerCount() === next.room.getPlayerCount() &&
+    prev.loadingRoom === next.loadingRoom
+  );
+});
+RoomCard.displayName = 'RoomCard';
 
 const ActiveRoomsScreen = ({ navigation }) => {
   const { user } = useAuth();
@@ -71,36 +161,26 @@ const ActiveRoomsScreen = ({ navigation }) => {
     navigation.navigate('Dashboard');
   };
 
-  /**
-   * Copia el código de la sala al portapapeles
-   */
-  const copyRoomCodeToClipboard = async (code) => {
+
+
+  // Memoized callbacks to avoid re-creating functions on each render
+  const copyRoomCodeToClipboardCb = useCallback(async (code) => {
     const result = await copyToClipboard(code);
     if (result.success) {
       showSuccessModal('¡Copiado!', 'El código de la sala ha sido copiado');
     } else {
       showErrorModal('Error', result.error || 'No se pudo copiar el código');
     }
-  };
+  }, [showSuccessModal, showErrorModal]);
 
-  /**
-   * Inicia el juego en una sala
-   */
-  const playInRoom = async (room) => {
+  const playInRoomCb = useCallback(async (room) => {
     try {
-      // Mostrar indicador de carga
       setLoadingRoom(true);
-
-      // Obtener los detalles completos de la sala (incluyendo nombres de jugadores)
       const roomDetails = await roomService.getRoomByCode(room.code, user.id);
-      
       if (!roomDetails.success) {
         throw new Error('No se pudo obtener los detalles de la sala');
       }
-
       const fullRoom = roomDetails.room;
-      
-      // Navegar a la pantalla de juego con la información completa
       navigation.navigate('Game', {
         roomId: fullRoom.id,
         roomCode: fullRoom.code,
@@ -115,93 +195,26 @@ const ActiveRoomsScreen = ({ navigation }) => {
         }
       });
     } catch (error) {
-      showErrorModal(
-        'Error',
-        'No se pudo cargar la sala: ' + error.message
-      );
+      showErrorModal('Error', 'No se pudo cargar la sala: ' + error.message);
     } finally {
       setLoadingRoom(false);
     }
-  };
+  }, [navigation, user?.id, showErrorModal]);
 
   /**
-   * Renderiza cada sala en la lista
+   * Renderiza cada sala en la lista utilizando el componente memoizado RoomCard
    */
-  const renderRoomItem = ({ item: room }) => (
-    <View style={styles.roomCard}>
-      <View style={styles.roomHeader}>
-        <View style={styles.roomCodeContainer}>
-          <Text style={styles.roomCodeLabel}>Código:</Text>
-          <Text style={styles.roomCode}>{room.code}</Text>
-        </View>
-        <View style={styles.statusContainer}>
-          <View
-            style={[
-              styles.statusDot,
-              { backgroundColor: getStatusColor(room.status) },
-            ]}
-          />
-          <Text style={styles.statusText}>{room.getStatusInSpanish()}</Text>
-        </View>
-      </View>
+  const renderRoomItem = useCallback(({ item: room }) => (
+    <RoomCard
+      room={room}
+      onPlay={playInRoomCb}
+      onCopy={copyRoomCodeToClipboardCb}
+      loadingRoom={loadingRoom}
+      currentUserId={user?.id}
+    />
+  ), [playInRoomCb, copyRoomCodeToClipboardCb, loadingRoom, user?.id]);
 
-      <View style={styles.roomInfo}>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Jugadores:</Text>
-          <Text style={styles.infoValue}>{room.getPlayerCount()}/2</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Creada:</Text>
-          <Text style={styles.infoValue}>{room.getFormattedCreatedAt()}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Rol:</Text>
-          <Text style={styles.infoValue}>
-            {room.isCreator(user?.id) ? 'Creador' : 'Participante'}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.roomActions}>
-        {room.isPlaying() ? (
-          <TouchableOpacity
-            style={[styles.playButton, loadingRoom && styles.disabledButton]}
-            onPress={() => playInRoom(room)}
-            disabled={loadingRoom}
-          >
-            {loadingRoom ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <Text style={styles.playButtonText}>🎮 Jugar</Text>
-            )}
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={styles.copyButton}
-            onPress={() => copyRoomCodeToClipboard(room.code)}
-          >
-            <Text style={styles.copyButtonText}>📋 Copiar</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
-
-  /**
-   * Obtiene el color del indicador de estado
-   */
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'waiting':
-        return '#FFD166'; // SECUNDARIO
-      case 'playing':
-        return '#28A745'; // Verde
-      case 'finished':
-        return '#6C757D'; // Gris
-      default:
-        return '#6C757D';
-    }
-  };
+  
 
   /**
    * Renderiza el estado vacío
@@ -348,7 +361,7 @@ const ActiveRoomsScreen = ({ navigation }) => {
         renderErrorState()
       ) : (
         <FlatList
-          data={filteredRooms.filter(room => {
+          data={useMemo(() => filteredRooms.filter(room => {
             if (!debouncedSearch) return true;
             const search = debouncedSearch.toLowerCase();
             return (
@@ -357,9 +370,11 @@ const ActiveRoomsScreen = ({ navigation }) => {
               room.opponentName?.toLowerCase().includes(search) ||
               room.status?.toLowerCase().includes(search)
             );
-          })}
+          }), [filteredRooms, debouncedSearch])}
           renderItem={renderRoomItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={useCallback((item) => item.id, [])}
+          initialNumToRender={8}
+          windowSize={10}
           contentContainerStyle={[
             styles.listContainer,
             userRooms.length === 0 && styles.emptyListContainer,
