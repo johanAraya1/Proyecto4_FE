@@ -1,9 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { useTheme } from '@react-navigation/native';
 
-const OrderCard = ({ order, style }) => {
+const OrderCard = ({ order, style, isSelected = false, onPress = null }) => {
   const { colors } = useTheme();
+
+  const CardWrapper = onPress ? TouchableOpacity : View;
+  const cardProps = onPress ? { onPress, activeOpacity: 0.7 } : {};
 
   if (!order) {
     return (
@@ -19,12 +22,18 @@ const OrderCard = ({ order, style }) => {
   }
   
   return (
-    <View 
+    <CardWrapper 
+      {...cardProps}
       testID="order-card"
       data-testid="order-card"
       accessible={true}
       accessibilityLabel={`Orden de ${order.name}`}
-      style={[styles.container, style, { borderColor: colors.border }]}>
+      style={[
+        styles.container, 
+        style, 
+        { borderColor: colors.border },
+        isSelected && styles.selectedCard
+      ]}>
       {/* Título de la bebida */}
       <Text style={[styles.title, { color: colors.text }]}>
         {order.name}
@@ -56,7 +65,7 @@ const OrderCard = ({ order, style }) => {
           Recompensa: {order.points} pts
         </Text>
       </View>
-    </View>
+    </CardWrapper>
   );
 };
 
@@ -80,6 +89,15 @@ const styles = StyleSheet.create({
     width: '90%',
     alignSelf: 'center',
     minHeight: 150,
+  },
+  selectedCard: {
+    borderColor: '#FFD700',
+    borderWidth: 3,
+    backgroundColor: '#FFF9E6',
+    transform: [{ scale: 1.05 }],
+    shadowColor: '#FFD700',
+    shadowOpacity: 0.4,
+    elevation: 8,
   },
   title: {
     fontSize: isSmallScreen ? 22 : 24,

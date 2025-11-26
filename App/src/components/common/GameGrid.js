@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import gameGridStyles from '../../styles/GameGrid.styles';
 
 const GameGrid = ({
@@ -8,6 +8,7 @@ const GameGrid = ({
   selectedPiece,
   possibleMoves,
   handleCellPress
+  , pickupEffect
 }) => {
   // Generate unique keys for grid positions
   const generateRowKey = (row, index) => `gamerow_${index}_${row.length}`;
@@ -48,6 +49,10 @@ const GameGrid = ({
                   <Text style={gameGridStyles.ingredientEmoji}>{ingredient.emoji}</Text>
                   <Text style={gameGridStyles.ingredientText}>{ingredient.text}</Text>
                 </View>
+                {/* Pickup effect rendered inside the cell when pickupEffect matches */}
+                {pickupEffect && pickupEffect.row === rowIndex && pickupEffect.col === colIndex && (
+                  <CellPickupEffect type={pickupEffect.type} />
+                )}
                 {player1Here && (
                   <View
                     style={[
@@ -80,6 +85,36 @@ const GameGrid = ({
         </View>
       ))}
     </View>
+  );
+};
+
+const CellPickupEffect = ({ type }) => {
+  const scale = useRef(new Animated.Value(0.6)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(scale, { toValue: 1.15, duration: 260, useNativeDriver: true }),
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 160, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0, duration: 420, useNativeDriver: true }),
+      ])
+    ]).start();
+  }, [scale, opacity]);
+
+  // Map type to a small display label or emoji
+  const typeEmojiMap = {
+    AGUA: '💧',
+    CAFE: '☕',
+    LECHE: '🥛',
+    CARAMELO: '🍬'
+  };
+  const label = typeEmojiMap[type] || type || '★';
+
+  return (
+    <Animated.View style={[gameGridStyles.pickupEffect, { transform: [{ scale }], opacity }] } pointerEvents="none">
+      <Text style={gameGridStyles.pickupText}>+1 {label}</Text>
+    </Animated.View>
   );
 };
 

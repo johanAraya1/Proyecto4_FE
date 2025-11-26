@@ -5,10 +5,10 @@ const PlayerCard = ({
   player,
   playerNumber,
   disabled,
-  order,
+  orders = [],
   inventory,
   isOrderCardTouchable = false,
-  isOrderCardSelected = false,
+  selectedOrderIds = [],
   onOrderCardPress = () => {},
   isMobile = false,
 }) => {
@@ -23,40 +23,51 @@ const PlayerCard = ({
   return (
     <View
       style={[
-        { flexDirection: 'column', alignItems: 'center', gap: 10, width: isMobile ? '90%' : '100%', maxWidth: isMobile ? 340 : undefined, opacity: disabled ? 0.5 : 1, alignSelf: 'center' },
+        { 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          gap: 10, 
+          width: isMobile ? '90%' : '100%', 
+          maxWidth: isMobile ? 340 : undefined, 
+          opacity: disabled ? 0.5 : 1, 
+          alignSelf: 'center' 
+        },
       ]}
     >
+      {/* Layout: en móvil horizontal (row), en web vertical (column) */}
       <View
         style={[
           {
-            flexDirection: isMobile ? 'column' : 'row',
+            flexDirection: isMobile ? 'row' : 'row',
             alignItems: 'flex-start',
-            gap: 10,
+            gap: isMobile ? 8 : 10,
             width: '100%',
-            justifyContent: 'center',
+            justifyContent: 'flex-start',
           },
         ]}
       >
-        {/* Card del Jugador */}
+        {/* Card del Jugador - Compacto */}
         <View
           style={[
             {
               backgroundColor: '#FFFFFF',
-              padding: isMobile ? 12 : 20,
-              borderRadius: 12,
-              marginBottom: isMobile ? 8 : 16,
+              padding: 8,
+              borderRadius: 8,
               shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
+              shadowOffset: { width: 0, height: 1 },
               shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-              borderWidth: 2,
+              shadowRadius: 2,
+              elevation: 2,
+              borderWidth: 1.5,
               borderColor: disabled ? '#E0E0E0' : highlightBorderColor,
               alignItems: 'center',
-              minHeight: 100,
-              width: isMobile ? '100%' : undefined,
-              maxWidth: isMobile ? 320 : undefined,
-              alignSelf: 'center',
+              justifyContent: 'center',
+              // Móvil: card más ancho para mejor visibilidad
+              width: isMobile ? 100 : undefined,
+              minHeight: isMobile ? 110 : 80,
+              maxHeight: isMobile ? 140 : undefined,
+              alignSelf: 'flex-start',
+              flexShrink: 0, // No se encoge
             },
           ]}
         >
@@ -64,59 +75,135 @@ const PlayerCard = ({
             <Text style={styles.avatarText}>{playerNumber}</Text>
           </View>
           <View style={styles.playerDetails}>
-            <Text style={{ fontSize: 18, fontWeight: '700', color: cardTextColor, marginBottom: 6, textAlign: 'center' }}>
-              {player.name || `Jugador ${playerNumber}`}
+            <Text style={{ 
+              fontSize: isMobile ? 13 : 14, 
+              fontWeight: '700', 
+              color: cardTextColor, 
+              marginBottom: 2, 
+              textAlign: 'center',
+              lineHeight: 15,
+            }}>
+              {player.name || `J${playerNumber}`}
             </Text>
-            <Text style={{ fontSize: 16, color: cardTextColor, textAlign: 'center', fontWeight: '500' }}>
-              Puntaje: {player.score ?? 0}
+            <Text style={{ 
+              fontSize: isMobile ? 11 : 13, 
+              color: cardTextColor, 
+              textAlign: 'center', 
+              fontWeight: '600',
+              lineHeight: 13,
+            }}>
+              Puntaje:
+            </Text>
+            <Text style={{ 
+              fontSize: isMobile ? 16 : 18, 
+              color: cardTextColor, 
+              textAlign: 'center', 
+              fontWeight: '700',
+            }}>
+              {player.score ?? 0}
             </Text>
           </View>
         </View>
 
-        {/* Card de la Orden */}
-        <TouchableOpacity
-          activeOpacity={isOrderCardTouchable ? 0.7 : 1}
-          disabled={!isOrderCardTouchable}
-          onPress={onOrderCardPress}
-          style={[
-            {
-              backgroundColor: isOrderCardSelected ? selectedBgColor : '#FFFFFF',
-              padding: isMobile ? 10 : 15,
-              borderRadius: 12,
-              borderWidth: 2,
-              borderColor: isOrderCardSelected ? selectedBorderColor : '#E0E0E0',
-              boxSizing: 'border-box',
+        {/* Cards de Órdenes Individuales */}
+        <View style={{
+          flex: 1,
+          alignSelf: 'flex-start',
+          gap: 6,
+        }}>
+          {orders.length === 0 ? (
+            <View style={{
+              backgroundColor: '#FFFFFF',
+              padding: 8,
+              borderRadius: 8,
+              borderWidth: 1.5,
+              borderColor: '#E0E0E0',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 50,
               shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.2,
-              shadowRadius: 4,
-              elevation: 3,
-              minWidth: isMobile ? 120 : 150,
-              maxWidth: isMobile ? 320 : undefined,
-              width: isMobile ? '100%' : undefined,
-              flex: 1,
-              zIndex: 10,
-              position: 'relative',
-              alignSelf: 'center',
-            },
-          ]}
-        >
-          <Text style={{
-            fontSize: 16,
-            fontWeight: 'bold',
-            color: isOrderCardSelected ? '#222' : '#333',
-            marginBottom: 8,
-            textShadowColor: isOrderCardSelected ? 'rgba(255,255,255,0.7)' : 'transparent',
-            textShadowOffset: isOrderCardSelected ? { width: 1, height: 1 } : { width: 0, height: 0 },
-            textShadowRadius: isOrderCardSelected ? 2 : 0,
-          }}>Orden:</Text>
-          <Text style={{ fontSize: 15, fontWeight: '600', marginBottom: 5 }}>{order ? order.name : 'Sin orden'}</Text>
-          <Text style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>Puntos: {order ? order.points : '0'}</Text>
-          <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 4 }}>Ingredientes:</Text>
-          {order?.ingredients?.map((ing) => (
-            <Text key={`player-${playerNumber}-ingredient-${ing}-${order?.name || ''}`} style={{ fontSize: 13, color: '#444', marginLeft: 8, marginBottom: 2 }}>• {ing}</Text>
-          ))}
-        </TouchableOpacity>
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+              elevation: 2,
+            }}>
+              <Text style={{ fontSize: 12, color: '#999', fontStyle: 'italic' }}>Sin órdenes</Text>
+            </View>
+          ) : (
+            orders.map((order, index) => (
+              <TouchableOpacity
+                key={`order-${order.id}-${index}`}
+                activeOpacity={isOrderCardTouchable ? 0.7 : 1}
+                disabled={!isOrderCardTouchable}
+                onPress={() => onOrderCardPress(order.id)}
+                style={{
+                  backgroundColor: selectedOrderIds.includes(order.id) ? selectedBgColor : '#FFFFFF',
+                  padding: 6,
+                  borderRadius: 8,
+                  borderWidth: selectedOrderIds.includes(order.id) ? 2 : 1.5,
+                  borderColor: selectedOrderIds.includes(order.id) ? selectedBorderColor : '#E0E0E0',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 2,
+                  elevation: 2,
+                }}
+              >
+                {/* Header: Orden # y Puntos en una línea */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <Text style={{
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: selectedOrderIds.includes(order.id) ? '#222' : '#444',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                  }}>Orden {index + 1}</Text>
+                  <View style={{
+                    backgroundColor: '#FFD166',
+                    paddingHorizontal: 5,
+                    paddingVertical: 2,
+                    borderRadius: 5,
+                  }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#6F4E37' }}>+{order.points}</Text>
+                  </View>
+                </View>
+
+                {/* Nombre de la bebida */}
+                <Text style={{ 
+                  fontSize: 12, 
+                  fontWeight: '600', 
+                  color: '#333',
+                  marginBottom: 6,
+                  lineHeight: 16,
+                }}>{order.name}</Text>
+
+                {/* Ingredientes en horizontal con badges compactos */}
+                <View style={{ 
+                  flexDirection: 'row', 
+                  flexWrap: 'wrap', 
+                  gap: 4,
+                  alignItems: 'center',
+                }}>
+                  {order?.ingredients?.map((ing, ingIndex) => (
+                    <View 
+                      key={`p${playerNumber}-o${index}-i${ingIndex}`}
+                      style={{
+                        backgroundColor: '#F5F5F5',
+                        paddingHorizontal: 6,
+                        paddingVertical: 3,
+                        borderRadius: 4,
+                        borderWidth: 1,
+                        borderColor: '#DDD',
+                      }}
+                    >
+                      <Text style={{ fontSize: 10, fontWeight: '600', color: '#555' }}>{ing}</Text>
+                    </View>
+                  ))}
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
       </View>
 
       {/* Card del Inventario */}
@@ -124,24 +211,24 @@ const PlayerCard = ({
         style={[
           {
             backgroundColor: '#FFFFFF',
-            padding: isMobile ? 10 : 15,
-            borderRadius: 12,
-            borderWidth: 2,
+            padding: 8,
+            borderRadius: 8,
+            borderWidth: 1.5,
             borderColor: cardBorderColor,
             shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.2,
-            shadowRadius: 4,
-            elevation: 3,
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.15,
+            shadowRadius: 2,
+            elevation: 2,
             width: isMobile ? '100%' : '100%',
             maxWidth: isMobile ? 320 : undefined,
-            marginTop: isMobile ? 6 : 10,
+            marginTop: isMobile ? 4 : 6,
             alignSelf: 'center',
           },
         ]}
       >
-        <Text style={{ fontSize: 16, fontWeight: 'bold', color: cardTextColor, marginBottom: 8 }}>Inventario:</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        <Text style={{ fontSize: 13, fontWeight: 'bold', color: cardTextColor, marginBottom: 6 }}>Inventario:</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
           {(() => {
             const ingredientNames = {
               AGUA: 'Agua',
@@ -157,26 +244,24 @@ const PlayerCard = ({
                   <View
                     key={ingredientType}
                     style={{
-                      backgroundColor: '#F0F0F0',
-                      paddingHorizontal: 12,
-                      paddingVertical: 6,
-                      borderRadius: 8,
+                      backgroundColor: '#F5F5F5',
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 6,
                       borderWidth: 1,
                       borderColor: '#DDD',
-                      marginRight: 4,
-                      marginBottom: 4,
-                      minWidth: 60,
-                      alignItems: 'center',
+                      marginRight: 2,
+                      marginBottom: 2,
                     }}
                   >
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#333' }}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#333' }}>
                       {ingredientNames[ingredientType]} x{count}
                     </Text>
                   </View>
                 );
               });
             return badges.length === 0 ? (
-              <Text style={{ fontSize: 13, color: '#999', fontStyle: 'italic' }}>
+              <Text style={{ fontSize: 11, color: '#999', fontStyle: 'italic' }}>
                 Sin ingredientes recolectados
               </Text>
             ) : badges;
@@ -189,22 +274,22 @@ const PlayerCard = ({
 
 const styles = StyleSheet.create({
   playerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 4,
   },
   avatarText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
   },
   playerDetails: {
     alignItems: 'center',
-    marginTop: 8,
-    paddingHorizontal: 8,
+    marginTop: 2,
+    paddingHorizontal: 2,
   },
 });
 

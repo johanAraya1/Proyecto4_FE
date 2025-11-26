@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import {
+  Platform,
   View,
   Text,
   TouchableOpacity,
@@ -8,6 +9,7 @@ import {
   FlatList,
   RefreshControl,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { useAuth } from '../../controllers/AuthContext';
 import { useRoom } from '../../hooks/useRoom';
@@ -15,112 +17,30 @@ import { CustomModal, BackButton } from '../../components/common';
 import { useCustomModal } from '../../hooks/useCustomModal';
 import { copyToClipboard } from '../../utils/clipboard';
 import { roomService } from '../../services/roomService';
+import useDebounce from '../../hooks/useDebounce';
 import styles from '../../styles/ActiveRoomsScreen.styles';
+// Platform is already imported from 'react-native' above
 
-const ActiveRoomsScreen = ({ navigation }) => {
-  const { user } = useAuth();
-  const { getUserRooms, loading, error, userRooms } = useRoom();
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingRoom, setLoadingRoom] = useState(false);
-
-  // Hook para modales personalizados
-  const {
-    modalVisible,
-    modalData,
-    showSuccessModal,
-    showErrorModal,
-    hideModal,
-  } = useCustomModal();
-
-  /**
-   * Carga las salas del usuario al montar el componente
-   */
-  useEffect(() => {
-    loadUserRooms();
-  }, []);
-
-  /**
-   * Carga las salas del usuario
-   */
-  const loadUserRooms = async () => {
-    if (user?.id) {
-      await getUserRooms(user.id);
+/**
+ * RoomCard: componente memoizado para tarjetas de sala.
+ * Usamos React.memo con una comparación personalizada para evitar re-render
+ * cuando las propiedades principales no cambian.
+ */
+const RoomCard = memo(({ room, onPlay, onCopy, loadingRoom, currentUserId }) => {
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'waiting':
+        return '#FFD166';
+      case 'playing':
+        return '#28A745';
+      case 'finished':
+        return '#6C757D';
+      default:
+        return '#6C757D';
     }
   };
 
-  /**
-   * Maneja el refresh de la lista
-   */
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadUserRooms();
-    setRefreshing(false);
-  };
-
-  /**
-   * Navega de vuelta al dashboard
-   */
-  const goBackToDashboard = () => {
-    navigation.navigate('Dashboard');
-  };
-
-  /**
-   * Copia el código de la sala al portapapeles
-   */
-  const copyRoomCodeToClipboard = async (code) => {
-    const result = await copyToClipboard(code);
-    if (result.success) {
-      showSuccessModal('¡Copiado!', 'El código de la sala ha sido copiado');
-    } else {
-      showErrorModal('Error', result.error || 'No se pudo copiar el código');
-    }
-  };
-
-  /**
-   * Inicia el juego en una sala
-   */
-  const playInRoom = async (room) => {
-    try {
-      // Mostrar indicador de carga
-      setLoadingRoom(true);
-
-      // Obtener los detalles completos de la sala (incluyendo nombres de jugadores)
-      const roomDetails = await roomService.getRoomByCode(room.code, user.id);
-      
-      if (!roomDetails.success) {
-        throw new Error('No se pudo obtener los detalles de la sala');
-      }
-
-      const fullRoom = roomDetails.room;
-      
-      // Navegar a la pantalla de juego con la información completa
-      navigation.navigate('Game', {
-        roomId: fullRoom.id,
-        roomCode: fullRoom.code,
-        roomData: {
-          id: fullRoom.id,
-          code: fullRoom.code,
-          creatorId: fullRoom.creatorId,
-          creatorName: fullRoom.creatorName,
-          opponentId: fullRoom.opponentId,
-          opponentName: fullRoom.opponentName,
-          status: fullRoom.status,
-        }
-      });
-    } catch (error) {
-      showErrorModal(
-        'Error',
-        'No se pudo cargar la sala: ' + error.message
-      );
-    } finally {
-      setLoadingRoom(false);
-    }
-  };
-
-  /**
-   * Renderiza cada sala en la lista
-   */
-  const renderRoomItem = ({ item: room }) => (
+  return (
     <View style={styles.roomCard}>
       <View style={styles.roomHeader}>
         <View style={styles.roomCodeContainer}>
@@ -150,7 +70,7 @@ const ActiveRoomsScreen = ({ navigation }) => {
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Rol:</Text>
           <Text style={styles.infoValue}>
-            {room.isCreator(user?.id) ? 'Creador' : 'Participante'}
+            {room.isCreator(currentUserId) ? 'Creador' : 'Participante'}
           </Text>
         </View>
       </View>
@@ -159,7 +79,7 @@ const ActiveRoomsScreen = ({ navigation }) => {
         {room.isPlaying() ? (
           <TouchableOpacity
             style={[styles.playButton, loadingRoom && styles.disabledButton]}
-            onPress={() => playInRoom(room)}
+            onPress={() => onPlay(room)}
             disabled={loadingRoom}
           >
             {loadingRoom ? (
@@ -171,7 +91,7 @@ const ActiveRoomsScreen = ({ navigation }) => {
         ) : (
           <TouchableOpacity
             style={styles.copyButton}
-            onPress={() => copyRoomCodeToClipboard(room.code)}
+            onPress={() => onCopy(room.code)}
           >
             <Text style={styles.copyButtonText}>📋 Copiar</Text>
           </TouchableOpacity>
@@ -179,22 +99,126 @@ const ActiveRoomsScreen = ({ navigation }) => {
       </View>
     </View>
   );
+}, (prev, next) => {
+  // Comparación ligera: re-render solo si cambian campos relevantes
+  return (
+    prev.room.id === next.room.id &&
+    prev.room.code === next.room.code &&
+    prev.room.status === next.room.status &&
+    prev.room.getPlayerCount() === next.room.getPlayerCount() &&
+    prev.loadingRoom === next.loadingRoom
+  );
+});
+RoomCard.displayName = 'RoomCard';
+
+const ActiveRoomsScreen = ({ navigation }) => {
+  const { user } = useAuth();
+  const { getUserRooms, loading, error, userRooms } = useRoom();
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingRoom, setLoadingRoom] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [selectedTab, setSelectedTab] = useState('Todas');
+  const [filteredRooms, setFilteredRooms] = useState(userRooms);
+  const debouncedSearch = useDebounce(searchText, 400);
+
+  // Hook para modales personalizados
+  const {
+    modalVisible,
+    modalData,
+    showSuccessModal,
+    showErrorModal,
+    hideModal,
+  } = useCustomModal();
 
   /**
-   * Obtiene el color del indicador de estado
+   * Carga las salas del usuario al montar el componente
    */
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'waiting':
-        return '#FFD166'; // SECUNDARIO
-      case 'playing':
-        return '#28A745'; // Verde
-      case 'finished':
-        return '#6C757D'; // Gris
-      default:
-        return '#6C757D';
+  useEffect(() => {
+    loadUserRooms();
+  }, []);
+
+
+  /**
+   * Carga las salas del usuario
+   */
+  const loadUserRooms = async () => {
+    if (user?.id) {
+      await getUserRooms(user.id);
     }
   };
+
+  /**
+   * Maneja el refresh de la lista
+   */
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadUserRooms();
+    setRefreshing(false);
+  };
+
+  /**
+   * Navega de vuelta al dashboard
+   */
+  const goBackToDashboard = () => {
+    navigation.navigate('Dashboard');
+  };
+
+
+
+  // Memoized callbacks to avoid re-creating functions on each render
+  const copyRoomCodeToClipboardCb = useCallback(async (code) => {
+    const result = await copyToClipboard(code);
+    if (result.success) {
+      showSuccessModal('¡Copiado!', 'El código de la sala ha sido copiado');
+    } else {
+      showErrorModal('Error', result.error || 'No se pudo copiar el código');
+    }
+  }, [showSuccessModal, showErrorModal]);
+
+  const playInRoomCb = useCallback(async (room) => {
+    try {
+      setLoadingRoom(true);
+      const roomDetails = await roomService.getRoomByCode(room.code, user.id);
+      if (!roomDetails.success) {
+        throw new Error('No se pudo obtener los detalles de la sala');
+      }
+      const fullRoom = roomDetails.room;
+      navigation.navigate('Game', {
+        roomId: fullRoom.id,
+        roomCode: fullRoom.code,
+        roomData: {
+          id: fullRoom.id,
+          code: fullRoom.code,
+          creatorId: fullRoom.creatorId,
+          creatorName: fullRoom.creatorName,
+          opponentId: fullRoom.opponentId,
+          opponentName: fullRoom.opponentName,
+          status: fullRoom.status,
+        }
+      });
+    } catch (error) {
+      showErrorModal('Error', 'No se pudo cargar la sala: ' + error.message);
+    } finally {
+      setLoadingRoom(false);
+    }
+  }, [navigation, user?.id, showErrorModal]);
+
+  /**
+   * Renderiza cada sala en la lista utilizando el componente memoizado RoomCard
+   */
+  const renderRoomItem = useCallback(({ item: room }) => (
+    <RoomCard
+      room={room}
+      onPlay={playInRoomCb}
+      onCopy={copyRoomCodeToClipboardCb}
+      loadingRoom={loadingRoom}
+      currentUserId={user?.id}
+    />
+  ), [playInRoomCb, copyRoomCodeToClipboardCb, loadingRoom, user?.id]);
+
+  
+
+  
 
   /**
    * Renderiza el estado vacío
@@ -228,6 +252,30 @@ const ActiveRoomsScreen = ({ navigation }) => {
       </TouchableOpacity>
     </View>
   );
+
+  /**
+   * Función para filtrar las salas
+   */
+  const filterRooms = (tab) => {
+    switch (tab) {
+      case 'Finalizadas':
+        setFilteredRooms(userRooms.filter(room => room.status === 'finished'));
+        break;
+      case 'Jugando':
+        setFilteredRooms(userRooms.filter(room => room.status === 'playing'));
+        break;
+      case 'En espera':
+        setFilteredRooms(userRooms.filter(room => room.status === 'waiting'));
+        break;
+      default:
+        setFilteredRooms(userRooms);
+    }
+  };
+
+  // Aplicar filtros automáticamente cuando cambien las salas o la pestaña seleccionada
+  useEffect(() => {
+    filterRooms(selectedTab);
+  }, [userRooms, selectedTab]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -281,13 +329,67 @@ const ActiveRoomsScreen = ({ navigation }) => {
         </View>
       </View>
 
+      {/* Tabs funcionales para filtrar */}
+      <View style={[
+        styles.tabsContainerImproved,
+        Platform.OS === 'web' && styles.tabsContainerWeb,
+      ]}>
+        {['Todas', 'Finalizadas', 'Jugando', 'En espera'].map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            style={[
+              styles.tabButtonImproved,
+              selectedTab === tab && styles.activeTabButtonImproved,
+            ]}
+            onPress={() => {
+              setSelectedTab(tab);
+              filterRooms(tab);
+            }}
+          >
+            <Text
+              style={[
+                styles.tabTextImproved,
+                Platform.OS === 'web' && styles.tabTextWeb,
+                selectedTab === tab && styles.activeTabTextImproved,
+              ]}
+            >
+              {tab}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Campo de búsqueda mejorado */}
+      <View style={styles.searchContainerImproved}>
+        <TextInput
+          style={[
+            styles.searchInputImproved,
+            Platform.OS === 'web' && styles.searchInputWeb,
+          ]}
+          placeholder={Platform.OS === 'web' ? 'Buscar salas por código' : '🔍 Buscar salas por código'}
+          value={searchText}
+          onChangeText={setSearchText}
+        />
+      </View>
+
       {error ? (
         renderErrorState()
       ) : (
         <FlatList
-          data={userRooms}
+          data={useMemo(() => filteredRooms.filter(room => {
+            if (!debouncedSearch) return true;
+            const search = debouncedSearch.toLowerCase();
+            return (
+              room.code?.toLowerCase().includes(search) ||
+              room.creatorName?.toLowerCase().includes(search) ||
+              room.opponentName?.toLowerCase().includes(search) ||
+              room.status?.toLowerCase().includes(search)
+            );
+          }), [filteredRooms, debouncedSearch])}
           renderItem={renderRoomItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={useCallback((item) => item.id, [])}
+          initialNumToRender={8}
+          windowSize={10}
           contentContainerStyle={[
             styles.listContainer,
             userRooms.length === 0 && styles.emptyListContainer,
@@ -314,6 +416,7 @@ const ActiveRoomsScreen = ({ navigation }) => {
         onClose={hideModal}
         confirmText={modalData.confirmText}
       />
+      {/* Onboarding moved to GameScreen: not shown here anymore */}
     </SafeAreaView>
   );
 };

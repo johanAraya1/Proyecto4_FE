@@ -127,6 +127,25 @@ const gameGridStyles = StyleSheet.create({
     right: 4,
     zIndex: 4,
   },
+  pickupEffect: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  pickupText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#6F4E37',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
 });
 
 export default gameGridStyles;

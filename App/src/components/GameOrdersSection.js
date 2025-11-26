@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import OrderCard from './OrderCard';
 
-const GameOrdersSection = ({ player1Order, player2Order, currentTurn }) => {
+const GameOrdersSection = ({ player1Orders = [], player2Orders = [], currentTurn, onOrderPress = null, selectedOrderId = null }) => {
   // Obtener dimensiones de la pantalla para diseño responsivo
   const { width } = Dimensions.get('window');
   const isMobile = width < 768;
@@ -14,8 +14,8 @@ const GameOrdersSection = ({ player1Order, player2Order, currentTurn }) => {
   };
 
   // Solo mostrar órdenes válidas
-  const validPlayer1Order = validateOrder(player1Order) ? player1Order : null;
-  const validPlayer2Order = validateOrder(player2Order) ? player2Order : null;
+  const validPlayer1Orders = player1Orders.filter(validateOrder);
+  const validPlayer2Orders = player2Orders.filter(validateOrder);
 
   return (
     <View 
@@ -24,46 +24,72 @@ const GameOrdersSection = ({ player1Order, player2Order, currentTurn }) => {
         styles.container,
         isMobile ? styles.containerMobile : styles.containerDesktop
       ]}>
-      {/* Orden del Jugador 1 */}
+      {/* Órdenes del Jugador 1 */}
       <View 
-        testID="player1-order-section"
-        data-testid="player1-order-section"
+        testID="player1-orders-section"
+        data-testid="player1-orders-section"
         style={[
           styles.orderSection,
           isMobile ? styles.orderSectionMobile : styles.orderSectionDesktop,
           currentTurn === 1 && styles.activeOrderSection
         ]}>
-        <OrderCard 
-          testID="player1-order-card"
-          data-testid="player1-order-card"
-          order={validPlayer1Order} 
-          style={[
-            styles.orderCard,
-            isMobile && styles.orderCardMobile,
-            currentTurn === 1 && styles.activeOrderCard
-          ]}
-        />
+        {validPlayer1Orders.length > 0 ? (
+          validPlayer1Orders.map((order, index) => (
+            <OrderCard 
+              key={order.id || index}
+              testID={`player1-order-card-${index}`}
+              data-testid={`player1-order-card-${index}`}
+              order={order}
+              isSelected={selectedOrderId === order.id}
+              onPress={onOrderPress ? () => onOrderPress(order.id) : null}
+              style={[
+                styles.orderCard,
+                isMobile && styles.orderCardMobile,
+                currentTurn === 1 && styles.activeOrderCard
+              ]}
+            />
+          ))
+        ) : (
+          <OrderCard 
+            testID="player1-order-card-empty"
+            order={null}
+            style={[styles.orderCard, isMobile && styles.orderCardMobile]}
+          />
+        )}
       </View>
 
-      {/* Orden del Jugador 2 */}
+      {/* Órdenes del Jugador 2 */}
       <View 
-        testID="player2-order-section"
-        data-testid="player2-order-section"
+        testID="player2-orders-section"
+        data-testid="player2-orders-section"
         style={[
           styles.orderSection,
           isMobile ? styles.orderSectionMobile : styles.orderSectionDesktop,
           currentTurn === 2 && styles.activeOrderSection
         ]}>
-        <OrderCard 
-          testID="player2-order-card"
-          data-testid="player2-order-card"
-          order={validPlayer2Order}
-          style={[
-            styles.orderCard,
-            isMobile && styles.orderCardMobile,
-            currentTurn === 2 && styles.activeOrderCard
-          ]}
-        />
+        {validPlayer2Orders.length > 0 ? (
+          validPlayer2Orders.map((order, index) => (
+            <OrderCard 
+              key={order.id || index}
+              testID={`player2-order-card-${index}`}
+              data-testid={`player2-order-card-${index}`}
+              order={order}
+              isSelected={selectedOrderId === order.id}
+              onPress={onOrderPress ? () => onOrderPress(order.id) : null}
+              style={[
+                styles.orderCard,
+                isMobile && styles.orderCardMobile,
+                currentTurn === 2 && styles.activeOrderCard
+              ]}
+            />
+          ))
+        ) : (
+          <OrderCard 
+            testID="player2-order-card-empty"
+            order={null}
+            style={[styles.orderCard, isMobile && styles.orderCardMobile]}
+          />
+        )}
       </View>
     </View>
   );

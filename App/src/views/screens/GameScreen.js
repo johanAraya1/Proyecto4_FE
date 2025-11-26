@@ -1,7 +1,7 @@
 const MemoizedPlayerCard = React.memo(PlayerCard);
 const MemoizedGameGrid = React.memo(GameGrid);
 
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,15 @@ import {
   ScrollView,
   SafeAreaView,
   ActivityIndicator,
-  Dimensions
+  Dimensions,
+  Animated,
 } from 'react-native';
 
 import PlayerCard from '../../components/common/PlayerCard';
 import GameGrid from '../../components/common/GameGrid';
 import CustomModal from '../../components/common/CustomModal';
+import OnboardingModal from '../../components/common/OnboardingModal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useGameLogic } from '../../hooks/useGameLogic';
 import { useAuth } from '../../controllers/AuthContext';
 import GameScreenStyles from '../../styles/GameScreenStyles';
@@ -56,11 +59,12 @@ const GameScreen = ({ navigation, route }) => {
     handleMainButtonPress,
     isExchangeMode,
     handleOrderCardPress,
-    selectedOrderCard,
+    selectedOrderCards,
+    pickupEffect,
     modalVisible,
     modalData,
     hideModal,
-  } = useGameLogic(roomCode, user?.id, roomData);
+  } = useGameLogic(roomCode, user?.id, roomData, navigation);
 
   // Función para obtener nombre a mostrar
 
@@ -76,6 +80,12 @@ const GameScreen = ({ navigation, route }) => {
     }
     return player.name;
   };
+  
+  // ✅ Determinar si es mi turno
+  const isPlayer1 = user?.id === roomData?.creatorId;
+  const isPlayer2 = user?.id === roomData?.opponentId;
+  const myTurn = isPlayer1 ? 1 : isPlayer2 ? 2 : null;
+  const isMyTurn = gameState.currentTurn === myTurn;
 
   // Maneja la salida del juego
 
@@ -96,29 +106,157 @@ const GameScreen = ({ navigation, route }) => {
     };
   }, []);
 
+  // Onboarding for the game screen (explain how to play) - show once per device/user
+  const [showGameOnboarding, setShowGameOnboarding] = useState(false);
+  useEffect(() => {
+    const checkGameOnboarding = async () => {
+      try {
+        const idPart = roomData?.id || roomCode || 'unknownRoom';
+        const userPart = user?.id || 'anonymous';
+        const storageKey = `onboarding_seen_game_${idPart}_${userPart}`;
+        let seen = null;
+        if (typeof window !== 'undefined' && window.localStorage) {
+          seen = window.localStorage.getItem(storageKey);
+        } else {
+          seen = await AsyncStorage.getItem(storageKey);
+        }
+        if (!seen) setShowGameOnboarding(true);
+      } catch (e) {
+        setShowGameOnboarding(true);
+      }
+    };
+
+    // Only show onboarding when the grid is ready AND it's the logged-in player's turn
+    if (ingredientGrid && isMyTurn) {
+      checkGameOnboarding();
+    }
+  }, [ingredientGrid, isMyTurn]);
+
+  const handleGameOnboardingClose = async () => {
+    // Mark onboarding as seen for this specific room and user so it never shows again in this room
+    setShowGameOnboarding(false);
+    const idPart = roomData?.id || roomCode || 'unknownRoom';
+    const userPart = user?.id || 'anonymous';
+    const storageKey = `onboarding_seen_game_${idPart}_${userPart}`;
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(storageKey, '1');
+      } else {
+        await AsyncStorage.setItem(storageKey, '1');
+      }
+    } catch (e) {
+      // ignore storage errors
+    }
+  };
+
+  // Steps specific to the gameplay onboarding
+  const gameOnboardingSteps = [
+    {
+      title: 'Objetivo del juego',
+      text: 'Reúne ingredientes y completa órdenes para ganar. Cada orden entregada suma puntos.',
+    },
+    {
+      title: 'Moverse en la cuadrícula',
+      text: 'Selecciona una pieza y toca una casilla válida para moverte. Tienes 3 movimientos por turno.',
+    },
+    {
+      title: 'Órdenes e inventario',
+      text: 'Las cartas de orden aparecen en tu panel. Recoge ingredientes en la cuadrícula para completar órdenes.',
+    },
+    {
+      title: 'Finalizar turno',
+      text: 'Cuando completes tus acciones pulsa "Finalizar turno". No puedes finalizar si estás en la misma casilla que el oponente.',
+    },
+    {
+      title: 'Consejos rápidos',
+      text: 'Usa canjes cuando sea necesario y prioriza órdenes con más puntos. ¡Buena suerte!',
+    },
+  ];
+
+  // Animaciones de transición al cambiar el turno
+  const turnAnim = useRef(new Animated.Value(1)).current; // escala
+  const accentAnim = useRef(new Animated.Value(0)).current; // overlay opacity
+  const waitAnim = useRef(new Animated.Value(0)).current; // for waiting overlay pulse
+
+  useEffect(() => {
+    // Ejecutar animación cada vez que cambie el turno
+    if (gameState && typeof gameState.currentTurn !== 'undefined') {
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(turnAnim, {
+            toValue: 1.08,
+            duration: 180,
+            useNativeDriver: true,
+          }),
+          Animated.timing(turnAnim, {
+            toValue: 1,
+            duration: 220,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.sequence([
+          Animated.timing(accentAnim, {
+            toValue: 0.6,
+            duration: 180,
+            useNativeDriver: true,
+          }),
+          Animated.timing(accentAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start();
+    }
+  }, [gameState?.currentTurn, turnAnim, accentAnim]);
+
+  // Pulse animation for waiting overlay when it's opponent's turn
+  useEffect(() => {
+    let loop;
+    const shouldShowWaiting = !isMyTurn && !loading && !error && ingredientGrid && (myTurn !== null);
+    if (shouldShowWaiting) {
+      waitAnim.setValue(0);
+      loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(waitAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+          Animated.timing(waitAnim, { toValue: 0, duration: 900, useNativeDriver: true }),
+        ])
+      );
+      loop.start();
+    } else {
+      waitAnim.stopAnimation();
+      waitAnim.setValue(0);
+    }
+    return () => {
+      if (loop) loop.stop();
+    };
+  }, [isMyTurn, loading, error, ingredientGrid, myTurn, waitAnim]);
+
   // Memoizar props de jugadores para móvil
   const playerPropsArr = useMemo(() => [
     {
       player: gameState.player1,
       playerNumber: 1,
       disabled: gameState.currentTurn !== 1,
-      order: gameState.player1.order,
+      orders: gameState.player1.orders,
       inventory: gameState.player1.inventory,
       isOrderCardTouchable: isExchangeMode && gameState.currentTurn === 1,
-      isOrderCardSelected: selectedOrderCard === 'player1',
-      onOrderCardPress: () => handleOrderCardPress(1),
+      selectedOrderIds: selectedOrderCards,
+      onOrderCardPress: handleOrderCardPress,
+      isMobile: isMobile, // Agregar prop isMobile
     },
     {
       player: gameState.player2,
       playerNumber: 2,
       disabled: gameState.currentTurn !== 2,
-      order: gameState.player2.order,
+      orders: gameState.player2.orders,
       inventory: gameState.player2.inventory,
       isOrderCardTouchable: isExchangeMode && gameState.currentTurn === 2,
-      isOrderCardSelected: selectedOrderCard === 'player2',
-      onOrderCardPress: () => handleOrderCardPress(2),
+      selectedOrderIds: selectedOrderCards,
+      onOrderCardPress: handleOrderCardPress,
+      isMobile: isMobile, // Agregar prop isMobile
     },
-  ], [gameState, isExchangeMode, selectedOrderCard]);
+  ], [gameState, isExchangeMode, selectedOrderCards, handleOrderCardPress, isMobile]);
 
 
 
@@ -164,6 +302,7 @@ const GameScreen = ({ navigation, route }) => {
                   selectedPiece={selectedPiece}
                   possibleMoves={possibleMoves}
                   handleCellPress={handleCellPress}
+                  pickupEffect={pickupEffect}
                   styles={GameScreenStyles}
                 />
               </View>
@@ -181,11 +320,12 @@ const GameScreen = ({ navigation, route }) => {
                   player={gameState.player1}
                   playerNumber={1}
                   disabled={gameState.currentTurn !== 1}
-                  order={gameState.player1.order}
+                  orders={gameState.player1.orders}
                   inventory={gameState.player1.inventory}
                   isOrderCardTouchable={isExchangeMode && gameState.currentTurn === 1}
-                  isOrderCardSelected={selectedOrderCard === 'player1'}
-                  onOrderCardPress={() => handleOrderCardPress(1)}
+                  selectedOrderIds={selectedOrderCards}
+                  onOrderCardPress={handleOrderCardPress}
+                  isMobile={false}
                 />
               </View>
               {/* Columna 2: Cuadrícula */}
@@ -196,6 +336,7 @@ const GameScreen = ({ navigation, route }) => {
                   selectedPiece={selectedPiece}
                   possibleMoves={possibleMoves}
                   handleCellPress={handleCellPress}
+                  pickupEffect={pickupEffect}
                   styles={GameScreenStyles}
                 />
               </View>
@@ -205,11 +346,12 @@ const GameScreen = ({ navigation, route }) => {
                   player={gameState.player2}
                   playerNumber={2}
                   disabled={gameState.currentTurn !== 2}
-                  order={gameState.player2.order}
+                  orders={gameState.player2.orders}
                   inventory={gameState.player2.inventory}
                   isOrderCardTouchable={isExchangeMode && gameState.currentTurn === 2}
-                  isOrderCardSelected={selectedOrderCard === 'player2'}
-                  onOrderCardPress={() => handleOrderCardPress(2)}
+                  selectedOrderIds={selectedOrderCards}
+                  onOrderCardPress={handleOrderCardPress}
+                  isMobile={false}
                 />
               </View>
             </View>
@@ -234,36 +376,63 @@ const GameScreen = ({ navigation, route }) => {
       {/* Indicador de turno - solo mostrar si no hay loading ni error */}
       {!loading && !error && (
         <>
-          <View style={GameScreenStyles.turnIndicator}>
+          <Animated.View
+            style={[
+              GameScreenStyles.turnIndicator,
+              { transform: [{ scale: turnAnim }] },
+            ]}
+          >
+            {/* overlay para efecto de acento al cambiar turno */}
+            <Animated.View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: 0,
+                backgroundColor: '#FFD166',
+                opacity: accentAnim,
+                borderRadius: 0,
+              }}
+            />
             <Text style={GameScreenStyles.turnText}>
               Turno de{' '}
               {gameState.currentTurn === 1
                 ? getPlayerDisplayName(gameState.player1, 1)
                 : getPlayerDisplayName(gameState.player2, 2)}
             </Text>
-          </View>
+          </Animated.View>
           <View style={{ alignItems: 'center', marginVertical: 10 }}>
             <Text style={{ marginBottom: 8, fontWeight: 'bold', color: '#6F4E37' }}>
               Movimientos: {movementCount}/3
             </Text>
-            <TouchableOpacity
-              style={[
-                GameScreenStyles.finalizeTurnButton,
-                (movementCount === 0 || arePlayersOnSamePosition()) && GameScreenStyles.finalizeTurnButtonDisabled,
-              ]}
-              disabled={movementCount === 0 || arePlayersOnSamePosition()}
-              onPress={handleMainButtonPress}
-            >
-              <Text style={[
-                GameScreenStyles.finalizeTurnButtonText,
-                (movementCount === 0 || arePlayersOnSamePosition()) && GameScreenStyles.finalizeTurnButtonTextDisabled,
-              ]}>
-                {isExchangeMode ? 'Canjear ingredientes' : 'Finalizar turno'}
-              </Text>
-            </TouchableOpacity>
-            {arePlayersOnSamePosition() && (
-              <Text style={{ marginTop: 8, color: '#DC3545', fontSize: 12, textAlign: 'center' }}>
-                No puedes terminar tu turno en la misma posición que tu oponente
+            {isMyTurn ? (
+              <>
+                <TouchableOpacity
+                  style={[
+                    GameScreenStyles.finalizeTurnButton,
+                    (movementCount === 0 || arePlayersOnSamePosition()) && GameScreenStyles.finalizeTurnButtonDisabled,
+                  ]}
+                  disabled={movementCount === 0 || arePlayersOnSamePosition()}
+                  onPress={handleMainButtonPress}
+                >
+                  <Text style={[
+                    GameScreenStyles.finalizeTurnButtonText,
+                    (movementCount === 0 || arePlayersOnSamePosition()) && GameScreenStyles.finalizeTurnButtonTextDisabled,
+                  ]}>
+                    {isExchangeMode ? 'Canjear ingredientes' : 'Finalizar turno'}
+                  </Text>
+                </TouchableOpacity>
+                {arePlayersOnSamePosition() && (
+                  <Text style={{ marginTop: 8, color: '#DC3545', fontSize: 12, textAlign: 'center' }}>
+                    No puedes terminar tu turno en la misma posición que tu oponente
+                  </Text>
+                )}
+              </>
+            ) : (
+              <Text style={{ marginTop: 8, color: '#888', fontSize: 14, textAlign: 'center', fontStyle: 'italic' }}>
+                Turno del oponente
               </Text>
             )}
           </View>
@@ -291,6 +460,21 @@ const GameScreen = ({ navigation, route }) => {
         confirmText={modalData.confirmText}
         showCancel={modalData.showCancel}
         cancelText={modalData.cancelText}
+      />
+      {/* Indicador de espera cuando no es tu turno */}
+      {(!isMyTurn && !loading && !error && ingredientGrid && (myTurn !== null)) && (
+        <Animated.View style={[GameScreenStyles.waitingOverlay, { opacity: waitAnim.interpolate({ inputRange: [0,1], outputRange: [0.9,1] }) }]} pointerEvents="none">
+          <Animated.View style={[GameScreenStyles.waitingBox, { transform: [{ scale: waitAnim.interpolate({ inputRange: [0,1], outputRange: [0.98,1.02] }) }] }] }>
+            <ActivityIndicator size="small" color="#6F4E37" style={{ marginRight: 8 }} />
+            <Text style={GameScreenStyles.waitingText}>Esperando al oponente...</Text>
+          </Animated.View>
+        </Animated.View>
+      )}
+      {/* Onboarding específico de la sala de juego */}
+      <OnboardingModal
+        visible={showGameOnboarding}
+        onClose={handleGameOnboardingClose}
+        steps={gameOnboardingSteps}
       />
     </SafeAreaView>
   );
