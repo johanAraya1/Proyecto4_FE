@@ -16,6 +16,7 @@ import { useCustomModal } from '../../hooks/useCustomModal';
 import TelemetryDashboard from '../../components/TelemetryDashboard';
 import GlobalRanking from '../../components/GlobalRanking';
 import styles from '../../styles/DashboardScreen.styles';
+import FriendsRanking from '../../components/FriendsRanking';
 
 /**
  * Pantalla principal del dashboard - Hub central de la aplicación
@@ -179,18 +180,13 @@ const DashboardScreen = ({ navigation }) => {
               🏆 Ranking Global
             </Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'ordenes' && styles.activeTab]}
-            onPress={() => setActiveTab('ordenes')}
+          
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'amigos' && styles.activeTab]}
+            onPress={() => setActiveTab('amigos')}
           >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === 'ordenes' && styles.activeTabText,
-              ]}
-            >
-              📝 Órdenes Activas
+            <Text style={[styles.tabText, activeTab === 'amigos' && styles.activeTabText]}>
+              🏆 Ranking Amigos
             </Text>
           </TouchableOpacity>
 
@@ -255,58 +251,28 @@ const DashboardScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* Contenido de Órdenes Activas */}
-        {activeTab === 'ordenes' && (
+        {/* Contenido del Ranking de Amigos */}
+        {activeTab === 'amigos' && (
           <View style={styles.content}>
-            <Text style={styles.sectionTitle}>Órdenes Activas</Text>
+            {/* Botones de gestión de amigos */}
+            <View style={styles.friendButtonsContainer}>
+              <TouchableOpacity 
+                style={[styles.roomButton, styles.createRoomButton]} 
+                onPress={() => navigation.navigate('Friends')}
+              >
+                <Text style={styles.createRoomText}>👥 Gestionar Amigos</Text>
+              </TouchableOpacity>
 
-            {/* Orden 1: Caramel Macchiato */}
-            <View style={styles.orderCard}>
-              <View style={styles.orderHeader}>
-                <Text style={styles.orderName}>Caramel Macchiato</Text>
-                <Text style={styles.orderTime}>2:40</Text>
-              </View>
-
-              <View style={styles.orderIngredients}>
-                <View style={styles.ingredient}>
-                  <Text style={styles.ingredientName}>Café</Text>
-                </View>
-                <View style={styles.ingredient}>
-                  <Text style={styles.ingredientName}>Leche</Text>
-                </View>
-                <View style={styles.ingredient}>
-                  <Text style={styles.ingredientName}>Agua</Text>
-                </View>
-              </View>
-
-              <Text style={styles.rewardText}>Recompensa: 50 pts</Text>
+              <TouchableOpacity 
+                style={[styles.roomButton, styles.joinRoomButton]} 
+                onPress={() => navigation.navigate('FriendRequests')}
+              >
+                <Text style={styles.joinRoomText}>📨 Solicitudes de Amistad</Text>
+              </TouchableOpacity>
             </View>
-
-            {/* Orden 2: Classic Latte */}
-            <View style={styles.orderCard}>
-              <View style={styles.orderHeader}>
-                <Text style={styles.orderName}>Classic Latte</Text>
-                <Text style={styles.orderTime}>1:30</Text>
-              </View>
-
-              <View style={styles.orderIngredients}>
-                <View style={styles.ingredient}>
-                  <Text style={styles.ingredientName}>Café</Text>
-                </View>
-                <View style={styles.ingredient}>
-                  <Text style={styles.ingredientName}>Leche</Text>
-                </View>
-              </View>
-
-              <Text style={styles.rewardText}>Recompensa: 30 pts</Text>
-            </View>
-
-            {/* Botón Go to Ingredient Board */}
-            <TouchableOpacity style={styles.ingredientBoardButton}>
-              <Text style={styles.ingredientBoardText}>
-                📋 Ir al Tablero de Ingredientes
-              </Text>
-            </TouchableOpacity>
+            
+            {/* Ranking de Amigos */}
+            <FriendsRanking />
           </View>
         )}
 
@@ -414,5 +380,292 @@ const DashboardScreen = ({ navigation }) => {
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F5F5', // NEUTRO
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  header: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  logo: {
+    width: 50,
+    height: 50,
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  userAvatar: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: '#6F4E37', // PRINCIPAL
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  userInitial: {
+    color: '#F5F5F5',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  userDetails: {
+    alignItems: 'flex-start',
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  userBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  adminBadge: {
+    backgroundColor: '#FFD166', // SECUNDARIO
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  adminText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6F4E37',
+  },
+  eloText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  logoutButton: {
+    backgroundColor: '#6F4E37', // PRINCIPAL
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  logoutText: {
+    color: '#F5F5F5',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 8,
+    padding: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  activeTab: {
+    backgroundColor: '#6F4E37', // PRINCIPAL
+  },
+  tabText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#666',
+    textAlign: 'center',
+  },
+  activeTabText: {
+    color: '#F5F5F5',
+    fontWeight: '600',
+  },
+  content: {
+    margin: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#6F4E37', // PRINCIPAL
+    marginBottom: 16,
+  },
+  placeholderContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  placeholderText: {
+    fontSize: 14,
+    color: '#888',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  createRoomButton: {
+    backgroundColor: '#6F4E37', // PRINCIPAL
+  },
+  createRoomText: {
+    color: '#F5F5F5',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  roomButtonsContainer: {
+    marginBottom: 20,
+  },
+  friendButtonsContainer: {
+    marginBottom: 20,
+  },
+  roomButton: {
+    width: '100%',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  joinRoomButton: {
+    backgroundColor: '#28A745', // Verde
+  },
+  joinRoomText: {
+    color: '#F5F5F5',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  viewRoomsButton: {
+    backgroundColor: '#FFD166', // SECUNDARIO
+  },
+  viewRoomsText: {
+    color: '#6F4E37', // PRINCIPAL
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  viewDeckButton: {
+    backgroundColor: '#17A2B8', // Azul para el deck
+  },
+  viewDeckText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  
+  // Estilos para los botones de administración
+  adminButtonsContainer: {
+    gap: 12,
+  },
+  adminButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderLeftWidth: 4,
+  },
+  featureFlagsButton: {
+    borderLeftColor: '#007BFF', // Azul para feature flags
+  },
+  usersButton: {
+    borderLeftColor: '#28A745', // Verde para usuarios
+  },
+  settingsButton: {
+    borderLeftColor: '#6C757D', // Gris para configuración
+  },
+  telemetryButton: {
+    borderLeftColor: '#17A2B8', // Azul cyan para telemetría
+  },
+  adminButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  adminButtonIcon: {
+    fontSize: 24,
+    marginRight: 16,
+  },
+  adminButtonText: {
+    flex: 1,
+  },
+  adminButtonTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  adminButtonSubtitle: {
+    fontSize: 12,
+    color: '#666',
+  },
+  adminButtonArrow: {
+    fontSize: 16,
+    color: '#CCC',
+  },
+  
+  // Estilos para la nueva organización de administración
+  adminSection: {
+    marginBottom: 20,
+  },
+  subsectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#6F4E37',
+    marginBottom: 16,
+    textAlign: 'left',
+  },
+  sectionSeparator: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: 24,
+  },
+});
 
 export default DashboardScreen;
