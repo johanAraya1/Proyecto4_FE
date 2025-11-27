@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '../config/api';
+import { Platform } from 'react-native';
 
 /**
  * Servicio de WebSocket para comunicación en tiempo real del juego
@@ -30,9 +31,22 @@ class GameWebSocketService {
     this.roomId = roomId;
     this.userId = userId;
     
-    // Convertir http/https a ws/wss
-    const wsUrl = API_BASE_URL.replace('http', 'ws');
-    const socketUrl = `${wsUrl}/game/${roomCode}?userId=${userId}`;
+    // Construir URL websocket de forma robusta:
+    // - Usar wss si la API base usa https, ws si usa http
+    // - En emulador Android, reemplazar "localhost" por 10.0.2.2 para acceder al host
+    const isSecure = API_BASE_URL.startsWith('https');
+    const wsProtocol = isSecure ? 'wss' : 'ws';
+
+    // Extraer host:hostport (sin esquema)
+    let host = API_BASE_URL.replace(/^https?:\/\//, '');
+
+    // Si estamos en Android emulator y el host apunta a localhost/127.0.0.1,
+    // usar 10.0.2.2 (mapa del emulador al host en Android Emulator)
+    if (Platform.OS === 'android') {
+      host = host.replace(/^localhost/, '10.0.2.2').replace(/^127\.0\.0\.1/, '10.0.2.2');
+    }
+
+    const socketUrl = `${wsProtocol}://${host}/game/${roomCode}?userId=${userId}`;
 
     try {
       this.socket = new WebSocket(socketUrl);
