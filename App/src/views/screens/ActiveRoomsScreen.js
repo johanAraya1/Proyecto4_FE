@@ -12,17 +12,22 @@ import {
 } from 'react-native';
 import { useAuth } from '../../controllers/AuthContext';
 import { useRoom } from '../../hooks/useRoom';
+import roomInvitationService from '../../services/roomInvitationService';
+import { Room } from '../../models/Room';
 
 const ActiveRoomsScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { getUserRooms, loading, error, userRooms } = useRoom();
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('all'); // 'all' o 'invited'
+  const [invitedRooms, setInvitedRooms] = useState([]);
 
   /**
    * Carga las salas del usuario al montar el componente
    */
   useEffect(() => {
     loadUserRooms();
+    loadInvitedRooms();
   }, []);
 
   /**
@@ -35,11 +40,28 @@ const ActiveRoomsScreen = ({ navigation }) => {
   };
 
   /**
+   * Carga las salas a las que el usuario fue invitado
+   */
+  const loadInvitedRooms = async () => {
+    if (user?.id) {
+      try {
+        const rooms = await roomInvitationService.getInvitedRooms(user.id);
+        // Convertir las salas usando el modelo Room
+        const roomObjects = rooms.map(room => Room.fromApiResponse(room));
+        setInvitedRooms(roomObjects);
+      } catch (err) {
+        console.error('Error al cargar salas invitadas:', err);
+      }
+    }
+  };
+
+  /**
    * Maneja el refresh de la lista
    */
   const onRefresh = async () => {
     setRefreshing(true);
     await loadUserRooms();
+    await loadInvitedRooms();
     setRefreshing(false);
   };
 
@@ -152,18 +174,28 @@ const ActiveRoomsScreen = ({ navigation }) => {
   /**
    * Renderiza el estado vacío
    */
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <Text style={styles.emptyIcon}>🎮</Text>
-      <Text style={styles.emptyTitle}>No tienes salas activas</Text>
-      <Text style={styles.emptyMessage}>
-        Crea una nueva sala desde el dashboard para comenzar a jugar
-      </Text>
-      <TouchableOpacity style={styles.createRoomButton} onPress={goBackToDashboard}>
-        <Text style={styles.createRoomButtonText}>🏠 Ir al Dashboard</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  const renderEmptyState = () => {
+    const isInvitedTab = activeTab === 'invited';
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyIcon}>🎮</Text>
+        <Text style={styles.emptyTitle}>
+          {isInvitedTab ? 'No tienes invitaciones' : 'No tienes salas activas'}
+        </Text>
+        <Text style={styles.emptyMessage}>
+          {isInvitedTab 
+            ? 'Cuando un amigo te invite a una sala, aparecerá aquí'
+            : 'Crea una nueva sala desde el dashboard para comenzar a jugar'
+          }
+        </Text>
+        {!isInvitedTab && (
+          <TouchableOpacity style={styles.createRoomButton} onPress={goBackToDashboard}>
+            <Text style={styles.createRoomButtonText}>🏠 Ir al Dashboard</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   /**
    * Renderiza el estado de error
@@ -173,11 +205,24 @@ const ActiveRoomsScreen = ({ navigation }) => {
       <Text style={styles.emptyIcon}>⚠️</Text>
       <Text style={styles.emptyTitle}>Error al cargar las salas</Text>
       <Text style={styles.emptyMessage}>{error}</Text>
-      <TouchableOpacity style={styles.retryButton} onPress={loadUserRooms}>
+      <TouchableOpacity style={styles.retryButton} onPress={() => {
+        loadUserRooms();
+        loadInvitedRooms();
+      }}>
         <Text style={styles.retryButtonText}>🔄 Reintentar</Text>
       </TouchableOpacity>
     </View>
   );
+
+  /**
+   * Obtiene las salas a mostrar según la pestaña activa
+   */
+  const getRoomsToDisplay = () => {
+    if (activeTab === 'invited') {
+      return invitedRooms;
+    }
+    return userRooms;
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -197,9 +242,27 @@ const ActiveRoomsScreen = ({ navigation }) => {
 
       <View style={styles.titleContainer}>
         <Text style={styles.title}>Mis Salas Activas</Text>
-        <Text style={styles.subtitle}>
-          {userRooms.length} {userRooms.length === 1 ? 'sala' : 'salas'}
-        </Text>
+        
+        {/* Pestañas de filtrado */}
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'all' && styles.activeTab]}
+            onPress={() => setActiveTab('all')}
+          >
+            <Text style={[styles.tabText, activeTab === 'all' && styles.activeTabText]}>
+              Todas ({userRooms.length})
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'invited' && styles.activeTab]}
+            onPress={() => setActiveTab('invited')}
+          >
+            <Text style={[styles.tabText, activeTab === 'invited' && styles.activeTabText]}>
+              Invitado ({invitedRooms.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+        
         <View style={styles.actionsRow}>
           <TouchableOpacity style={styles.smallButton} onPress={() => navigation.navigate('Friends')}>
             <Text style={styles.smallButtonText}>👥 Amigos</Text>
@@ -214,12 +277,12 @@ const ActiveRoomsScreen = ({ navigation }) => {
         renderErrorState()
       ) : (
         <FlatList
-          data={userRooms}
+          data={getRoomsToDisplay()}
           renderItem={renderRoomItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[
             styles.listContainer,
-            userRooms.length === 0 && styles.emptyListContainer
+            getRoomsToDisplay().length === 0 && styles.emptyListContainer
           ]}
           refreshControl={
             <RefreshControl
@@ -292,7 +355,32 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#6F4E37', // PRINCIPAL
-    marginBottom: 4,
+    marginBottom: 12,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  activeTab: {
+    backgroundColor: '#6F4E37',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  activeTabText: {
+    color: '#FFFFFF',
   },
   subtitle: {
     fontSize: 14,
