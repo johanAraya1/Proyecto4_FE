@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,13 +15,16 @@ import {
 import { useAuth } from '../../controllers/AuthContext';
 import { useRoom } from '../../hooks/useRoom';
 
-const JoinRoomScreen = ({ navigation }) => {
+const JoinRoomScreen = ({ navigation, route }) => {
   const { user } = useAuth();
   const { getRoomByCode, joinRoomById, loading, error } = useRoom();
   const [roomCode, setRoomCode] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [foundRoom, setFoundRoom] = useState(null);
   const [isJoining, setIsJoining] = useState(false);
+
+  // Obtener código prellenado de los parámetros de navegación (si viene de invitación)
+  const prefilledCode = route.params?.prefilledCode;
 
   // Estados para el modal personalizado
   const [modalVisible, setModalVisible] = useState(false);
@@ -32,6 +35,20 @@ const JoinRoomScreen = ({ navigation }) => {
     type: 'success', // 'success' | 'error'
     onConfirm: null
   });
+
+  /**
+   * Efecto para código prellenado - buscar automáticamente
+   */
+  useEffect(() => {
+    if (prefilledCode) {
+      const formattedCode = formatRoomCode(prefilledCode);
+      setRoomCode(formattedCode);
+      // Buscar automáticamente después de un pequeño delay
+      setTimeout(() => {
+        handleSearchRoom(formattedCode);
+      }, 500);
+    }
+  }, [prefilledCode]);
 
   /**
    * Función para mostrar modal personalizado
@@ -139,16 +156,18 @@ const JoinRoomScreen = ({ navigation }) => {
   /**
    * Busca la sala por código
    */
-  const handleSearchRoom = async () => {
-    console.log('🔍 Buscando sala con código:', roomCode);
+  const handleSearchRoom = async (codeToSearch = null) => {
+    // Si codeToSearch es un evento (tiene target), usar roomCode en su lugar
+    const searchCode = (codeToSearch && typeof codeToSearch === 'string') ? codeToSearch : roomCode;
+    console.log('🔍 Buscando sala con código:', searchCode);
 
     // Validar código
-    if (!roomCode.trim()) {
+    if (!searchCode || !searchCode.trim()) {
       showCustomAlert('Error', 'Por favor ingresa un código de sala', 'error');
       return;
     }
 
-    if (!isValidCode(roomCode)) {
+    if (!isValidCode(searchCode)) {
       showCustomAlert('Error', 'El código debe tener exactamente 6 caracteres alfanuméricos', 'error');
       return;
     }
@@ -158,7 +177,7 @@ const JoinRoomScreen = ({ navigation }) => {
       setFoundRoom(null);
       
       // Buscar la sala
-      const room = await getRoomByCode(roomCode);
+      const room = await getRoomByCode(searchCode);
       
       if (room) {
         console.log('✅ Sala encontrada:', room);

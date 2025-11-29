@@ -9,6 +9,7 @@ import JoinRoomScreen from '../views/screens/JoinRoomScreen';
 import FeatureFlagsScreen from '../views/screens/FeatureFlagsScreen';
 import FriendsScreen from '../views/screens/FriendsScreen';
 import FriendRequestsScreen from '../views/screens/FriendRequestsScreen';
+import RoomInvitationsScreen from '../views/screens/RoomInvitationsScreen';
 
 // Crear instancia del stack navigator
 const Stack = createStackNavigator();
@@ -151,6 +152,19 @@ const AppNavigator = () => {
           headerStyle: { backgroundColor: '#6F4E37' },
           headerTintColor: '#FFFFFF',
           headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
+
+      {/* Pantalla de Invitaciones a Salas */}
+      <Stack.Screen
+        name="RoomInvitations"
+        component={RoomInvitationsScreen}
+        options={{
+          title: 'Invitaciones a Salas',
+          headerStyle: { backgroundColor: '#6F4E37' },
+          headerTintColor: '#FFFFFF',
+          headerTitleStyle: { fontWeight: 'bold' },
+          headerShown: false,
         }}
       />
     </Stack.Navigator>

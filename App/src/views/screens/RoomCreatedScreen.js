@@ -11,6 +11,7 @@ import {
   Modal,
   FlatList,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useAuth } from '../../controllers/AuthContext';
 import friendService from '../../services/friendService';
@@ -27,6 +28,18 @@ const RoomCreatedScreen = ({ navigation, route }) => {
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [sendingInvitation, setSendingInvitation] = useState(false);
 
+  // Estados para el modal de alerta personalizado
+  const [alertModalVisible, setAlertModalVisible] = useState(false);
+  const [alertModalData, setAlertModalData] = useState({
+    title: '',
+    message: '',
+    icon: '',
+    type: 'success',
+    onConfirm: null,
+    bgColor: '#D4F6D4',
+    buttonColor: '#28A745'
+  });
+
   /**
    * Carga la lista de amigos al abrir el modal
    */
@@ -35,6 +48,70 @@ const RoomCreatedScreen = ({ navigation, route }) => {
       loadFriends();
     }
   }, [showFriendsModal]);
+
+  /**
+   * Función para mostrar modal personalizado
+   */
+  const showCustomAlert = (title, message, type = 'success', onConfirm = null) => {
+    const iconMap = {
+      success: '🎉',
+      error: '❌',
+      warning: '⚠️',
+      info: 'ℹ️'
+    };
+
+    const colorMap = {
+      success: '#D4F6D4',
+      error: '#FFE6E6', 
+      warning: '#FFF3CD',
+      info: '#D1ECF1'
+    };
+
+    const buttonColorMap = {
+      success: '#28A745',
+      error: '#DC3545',
+      warning: '#FFC107',
+      info: '#17A2B8'
+    };
+
+    setAlertModalData({
+      title,
+      message,
+      icon: iconMap[type] || '🎉',
+      type,
+      onConfirm,
+      bgColor: colorMap[type] || '#D4F6D4',
+      buttonColor: buttonColorMap[type] || '#28A745'
+    });
+    setAlertModalVisible(true);
+  };
+
+  /**
+   * Maneja el cierre del modal de alerta
+   */
+  const handleAlertModalClose = () => {
+    setAlertModalVisible(false);
+    
+    // Ejecutar callback si existe
+    if (alertModalData.onConfirm) {
+      setTimeout(() => {
+        alertModalData.onConfirm();
+      }, 300);
+    }
+    
+    // Limpiar datos del modal
+    setTimeout(() => {
+      setAlertModalData({
+        title: '',
+        message: '',
+        icon: '',
+        type: 'success',
+        onConfirm: null,
+        bgColor: '#D4F6D4',
+        buttonColor: '#28A745'
+      });
+    }, 300);
+  };
 
   /**
    * Carga los amigos del usuario
@@ -48,7 +125,7 @@ const RoomCreatedScreen = ({ navigation, route }) => {
       setFriends(friendsList);
     } catch (err) {
       console.error('Error al cargar amigos:', err);
-      Alert.alert('Error', 'No se pudieron cargar tus amigos');
+      showCustomAlert('Error', 'No se pudieron cargar tus amigos', 'error');
     } finally {
       setLoadingFriends(false);
     }
@@ -72,36 +149,50 @@ const RoomCreatedScreen = ({ navigation, route }) => {
    * Envía una invitación a un amigo
    */
   const sendInvitationToFriend = async (friend) => {
+    console.log('🎯 sendInvitationToFriend llamada con:', friend);
+    console.log('📊 Datos:', { userId: user?.id, roomId: room?.id, friendId: friend.id });
+    
     if (!user?.id || !room?.id) {
-      Alert.alert('Error', 'No se pudo enviar la invitación');
+      console.error('❌ Error: faltan datos', { user: user?.id, room: room?.id });
+      showCustomAlert('Error', 'No se pudo enviar la invitación', 'error');
       return;
     }
 
     try {
+      console.log('📤 Enviando invitación...');
       setSendingInvitation(true);
-      await roomInvitationService.sendRoomInvitation(room.id, user.id, friend.id);
+      const result = await roomInvitationService.sendRoomInvitation(room.id, user.id, friend.id);
+      console.log('✅ Invitación enviada exitosamente:', result);
       
-      Alert.alert(
-        '¡Invitación Enviada!',
-        `Se ha enviado una invitación a ${friend.name} para unirse a tu sala.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => closeFriendsModal()
-          }
-        ]
-      );
+      // Cerrar modal primero
+      console.log('🚪 Cerrando modal...');
+      closeFriendsModal();
+      
+      // Mostrar notificación de éxito
+      console.log('🔔 Mostrando alerta de éxito...');
+      
+      // Usar setTimeout para asegurar que el modal se cierre primero
+      setTimeout(() => {
+        showCustomAlert(
+          '¡Invitación Enviada!',
+          `Se ha enviado la invitación a ${friend.name} para unirse a tu sala.\n\nTu amigo recibirá la invitación y podrá aceptarla desde la sección "Invitado" en Ver Salas Activas.`,
+          'success'
+        );
+        console.log('✅ Alerta mostrada correctamente');
+      }, 300);
     } catch (err) {
-      console.error('Error al enviar invitación:', err);
+      console.error('💥 Error al enviar invitación:', err);
       
       let errorMessage = 'No se pudo enviar la invitación';
       if (err.message.includes('ya invitado') || err.message.includes('already invited')) {
-        errorMessage = 'Ya has enviado una invitación a este amigo';
+        errorMessage = 'Ya has enviado una invitación a este amigo para esta sala';
       } else if (err.message.includes('sala llena') || err.message.includes('room full')) {
-        errorMessage = 'La sala ya está llena';
+        errorMessage = 'La sala ya está llena. No se pueden enviar más invitaciones';
+      } else if (err.message.includes('sala no encontrada')) {
+        errorMessage = 'La sala ya no existe';
       }
       
-      Alert.alert('Error', errorMessage);
+      showCustomAlert('Error', errorMessage, 'error');
     } finally {
       setSendingInvitation(false);
     }
@@ -113,7 +204,7 @@ const RoomCreatedScreen = ({ navigation, route }) => {
   const copyRoomCode = () => {
     if (room?.code) {
       Clipboard.setString(room.code);
-      Alert.alert('¡Copiado!', 'El código de la sala ha sido copiado al portapapeles');
+      showCustomAlert('¡Copiado!', 'El código de la sala ha sido copiado al portapapeles', 'success');
     }
   };
 
@@ -129,7 +220,7 @@ const RoomCreatedScreen = ({ navigation, route }) => {
    */
   const shareRoomCode = () => {
     // TODO: Implementar funcionalidad de compartir
-    Alert.alert('Compartir', 'Funcionalidad de compartir en desarrollo');
+    showCustomAlert('Compartir', 'Funcionalidad en desarrollo', 'info');
   };
 
   // Si no hay datos de la sala, mostrar error
@@ -290,6 +381,45 @@ const RoomCreatedScreen = ({ navigation, route }) => {
               </View>
             )}
           </View>
+        </View>
+      </Modal>
+
+      {/* Modal de alerta personalizado */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={alertModalVisible}
+        onRequestClose={handleAlertModalClose}
+      >
+        <View style={styles.modalOverlay}>
+          <Animated.View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              {/* Icono */}
+              <View style={[
+                styles.modalIconContainer,
+                { backgroundColor: alertModalData.bgColor || '#D4F6D4' }
+              ]}>
+                <Text style={styles.modalIcon}>{alertModalData.icon}</Text>
+              </View>
+
+              {/* Título */}
+              <Text style={styles.modalTitle}>{alertModalData.title}</Text>
+
+              {/* Mensaje */}
+              <Text style={styles.modalMessage}>{alertModalData.message}</Text>
+
+              {/* Botón OK */}
+              <TouchableOpacity 
+                style={[
+                  styles.modalButton,
+                  { backgroundColor: alertModalData.buttonColor || '#28A745' }
+                ]}
+                onPress={handleAlertModalClose}
+              >
+                <Text style={styles.modalButtonText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -657,6 +787,80 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 12,
     fontWeight: '600',
+  },
+
+  // Estilos del Modal de alerta personalizado
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 0,
+    maxWidth: 400,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalContent: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  modalIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalIcon: {
+    fontSize: 40,
+    textAlign: 'center',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  modalButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    borderRadius: 12,
+    minWidth: 120,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  modalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });
 
