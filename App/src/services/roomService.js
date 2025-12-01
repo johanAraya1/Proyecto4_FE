@@ -61,8 +61,12 @@ class RoomService {
         throw new Error('ID de usuario inválido');
       }
 
+      console.log('🔍 Buscando sala en backend:', { roomCode, userId });
+      
       // Agregar user_id como query parameter
       const response = await this.apiClient.get(`/rooms/code/${roomCode}?user_id=${userId}`);
+      
+      console.log('📥 Respuesta del backend:', response);
 
       if (
         (response.status === 200 || response.status === 201) &&

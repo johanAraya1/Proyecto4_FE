@@ -67,6 +67,8 @@ export const useRoom = () => {
       setLoading(true);
       setError(null);
 
+      console.log('🎯 useRoom.getRoomByCode llamado:', { roomCode, userId });
+
       // Validar entradas
       if (!roomCode) {
         throw new Error('Código de sala es requerido');
@@ -76,8 +78,12 @@ export const useRoom = () => {
         throw new Error('ID de usuario es requerido');
       }
 
+      console.log('✅ Validaciones pasadas, llamando a roomService...');
+
       // Llamar al servicio para buscar la sala
       const response = await roomService.getRoomByCode(roomCode, userId);
+      
+      console.log('📦 Respuesta del servicio:', response);
 
       if (response.success) {
         setCurrentRoom(response.room);
@@ -93,6 +99,7 @@ export const useRoom = () => {
         throw new Error('Sala no encontrada');
       }
     } catch (err) {
+      console.error('❌ Error en useRoom.getRoomByCode:', err);
       setError(err.message);
       setCurrentRoom(null);
       return null;

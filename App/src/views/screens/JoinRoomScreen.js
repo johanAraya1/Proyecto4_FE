@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,16 +9,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Modal,
-  Animated,
 } from 'react-native';
 import { useAuth } from '../../controllers/AuthContext';
 import { useRoom } from '../../hooks/useRoom';
-import { BackButton } from '../../components/common';
+import { CustomModal, BackButton } from '../../components/common';
+import { useCustomModal } from '../../hooks/useCustomModal';
 import { navigateToDashboard } from '../../utils';
 import styles from '../../styles/JoinRoomScreen.styles';
 
-const JoinRoomScreen = ({ navigation, route }) => {
+const JoinRoomScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { getRoomByCode, joinRoomById } = useRoom();
   const [roomCode, setRoomCode] = useState('');
@@ -26,102 +25,17 @@ const JoinRoomScreen = ({ navigation, route }) => {
   const [foundRoom, setFoundRoom] = useState(null);
   const [isJoining, setIsJoining] = useState(false);
 
-  // Obtener código prellenado de los parámetros de navegación (si viene de invitación)
-  const prefilledCode = route.params?.prefilledCode;
+  console.log('👤 Usuario en JoinRoomScreen:', user);
 
-  // Estados para el modal personalizado
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalData, setModalData] = useState({
-    title: '',
-    message: '',
-    icon: '',
-    type: 'success',
-    onConfirm: null,
-    bgColor: '#D4F6D4',
-    buttonColor: '#28A745'
-  });
-
-  /**
-   * Efecto para código prellenado - buscar automáticamente
-   */
-  useEffect(() => {
-    if (prefilledCode) {
-      const formattedCode = formatRoomCode(prefilledCode);
-      setRoomCode(formattedCode);
-      // Buscar automáticamente después de un pequeño delay
-      setTimeout(() => {
-        handleSearchRoom(formattedCode);
-      }, 500);
-    }
-  }, [prefilledCode]);
-
-  /**
-   * Función para mostrar modal personalizado
-   */
-  const showCustomAlert = (title, message, type = 'success', onConfirm = null) => {
-    console.log('🚨 showCustomAlert llamada:', title);
-    
-    const iconMap = {
-      success: '🎉',
-      error: '❌',
-      warning: '⚠️',
-      info: 'ℹ️'
-    };
-
-    const colorMap = {
-      success: '#D4F6D4',
-      error: '#FFE6E6', 
-      warning: '#FFF3CD',
-      info: '#D1ECF1'
-    };
-
-    const buttonColorMap = {
-      success: '#28A745',
-      error: '#DC3545',
-      warning: '#FFC107',
-      info: '#17A2B8'
-    };
-
-    setModalData({
-      title,
-      message,
-      icon: iconMap[type] || '🎉',
-      type,
-      onConfirm,
-      bgColor: colorMap[type] || '#D4F6D4',
-      buttonColor: buttonColorMap[type] || '#28A745'
-    });
-    setModalVisible(true);
-  };
-
-  /**
-   * Maneja el cierre del modal
-   */
-  const handleModalClose = () => {
-    console.log('🔄 Cerrando modal...');
-    setModalVisible(false);
-    
-    // Ejecutar callback si existe
-    if (modalData.onConfirm) {
-      console.log('🔄 Ejecutando callback del modal...');
-      setTimeout(() => {
-        modalData.onConfirm();
-      }, 300);
-    }
-    
-    // Limpiar datos del modal
-    setTimeout(() => {
-      setModalData({
-        title: '',
-        message: '',
-        icon: '',
-        type: 'success',
-        onConfirm: null,
-        bgColor: '#D4F6D4',
-        buttonColor: '#28A745'
-      });
-    }, 300);
-  };
+  // Hook para manejar modales
+  const {
+    modalVisible,
+    modalData,
+    showSuccessModal,
+    showErrorModal,
+    showWarningModal,
+    hideModal,
+  } = useCustomModal();
 
   /**
    * Navega de vuelta al dashboard
@@ -136,8 +50,10 @@ const JoinRoomScreen = ({ navigation, route }) => {
   const formatRoomCode = (text) => {
     // Remover espacios y convertir a mayúsculas
     const formatted = text.replace(/\s/g, '').toUpperCase();
+
     // Limitar a 6 caracteres alfanuméricos
     const alphanumeric = formatted.replace(/[^A-Z0-9]/g, '');
+
     return alphanumeric.substring(0, 6);
   };
 
@@ -157,70 +73,88 @@ const JoinRoomScreen = ({ navigation, route }) => {
   };
 
   /**
-   * Busca una sala por código
+   * Busca una sala por su código
    */
-  const handleSearchRoom = async (codeOverride = null) => {
-    const searchCode = codeOverride || roomCode.trim();
-    console.log('🔍 Buscando sala con código:', searchCode);
-
-    // Validar código
-    if (!searchCode || !searchCode.trim()) {
-      showCustomAlert('Error', 'Por favor ingresa un código de sala', 'error');
+  const handleSearchRoom = async () => {
+    if (!roomCode.trim()) {
+      showErrorModal('Error', 'Por favor ingresa un código de sala');
       return;
     }
 
-    if (!isValidRoomCode(searchCode)) {
-      showCustomAlert('Error', 'El código debe tener exactamente 6 caracteres alfanuméricos', 'error');
+    if (!isValidRoomCode(roomCode)) {
+      showErrorModal(
+        'Error',
+        'El código debe tener exactamente 6 caracteres alfanuméricos'
+      );
+      return;
+    }
+
+    // Validar que el usuario esté autenticado
+    if (!user || !user.id) {
+      showErrorModal(
+        'Error de Autenticación',
+        'No se pudo obtener la información del usuario. Por favor, inicia sesión nuevamente.'
+      );
       return;
     }
 
     try {
       setIsSearching(true);
       setFoundRoom(null);
-      
-      // Buscar la sala
-      const room = await getRoomByCode(searchCode);
-      
-      if (room) {
-        console.log('✅ Sala encontrada:', room);
-        
-        // Verificar si la sala puede aceptar jugadores
-        if (room.isFull()) {
-          showCustomAlert(
-            'Sala Completa',
-            'Esta sala ya tiene 2 jugadores. No puedes unirte.',
-            'warning'
+
+      const response = await getRoomByCode(roomCode, user.id);
+
+      if (response) {
+        const { room, isUserInRoom, isRoomFull, message, userRole } = response;
+
+        // Caso 1: Usuario ya está en la sala
+        if (isUserInRoom) {
+          showErrorModal(
+            'Ya eres miembro',
+            message || `Ya formas parte de esta sala como ${userRole}`
           );
-          return;
+          return; // Detener el flujo
         }
 
-        // Sala disponible - mostrar información
+        // Caso 2: Sala está llena
+        if (isRoomFull) {
+          // Determinar el título apropiado basado en el mensaje
+          let title = 'Sala No Disponible';
+          const displayMessage = message || 'Esta sala ya está completa. ¡Busca otra sala para jugar!';
+          
+          // Si el mensaje indica que la sala ha terminado, usar un título más apropiado
+          if (message && (message.includes('terminado') || message.includes('finalizado'))) {
+            title = 'Sala Terminada';
+          } else if (message && message.includes('llena')) {
+            title = 'Sala Llena';
+          }
+          
+          showErrorModal(title, displayMessage);
+          return; // Detener el flujo
+        }
+
+        // Caso 3: Sala disponible - continuar normalmente
         setFoundRoom(room);
-        showCustomAlert(
+        showSuccessModal(
           'Sala Encontrada',
-          `Sala creada por ${room.creatorName || 'Usuario desconocido'}`,
-          'success'
+          `Sala creada por ${room.creatorName || 'Usuario desconocido'}`
         );
       } else {
-        showCustomAlert(
+        showErrorModal(
           'Sala No Encontrada',
-          'No se encontró ninguna sala con ese código. Verifica que el código sea correcto.',
-          'error'
+          'No se encontró ninguna sala con ese código. Verifica que el código sea correcto.'
         );
       }
     } catch (err) {
-      console.error('Error al buscar sala:', err);
       if (err.message.includes('conexión') || err.message.includes('network')) {
-        showCustomAlert(
+        showErrorModal(
           '🌐 Error de Conexión',
-          'Hay problemas con tu conexión a internet.\n\nVerifica tu conexión e inténtalo nuevamente.',
-          'error'
+          'Hay problemas con tu conexión a internet.\n\nVerifica tu conexión e inténtalo nuevamente.'
         );
       } else {
-        showCustomAlert(
+        showErrorModal(
           'Error al Buscar',
-          err.message || 'No se pudo buscar la sala. Inténtalo nuevamente.',
-          'error'
+          err.message || 'No se pudo buscar la sala. Inténtalo nuevamente.'
         );
       }
     } finally {
@@ -233,40 +167,46 @@ const JoinRoomScreen = ({ navigation, route }) => {
    */
   const handleJoinRoom = async (room) => {
     if (!user) {
-      showCustomAlert(
+      showErrorModal(
         'Error',
         'No se pudo obtener la información del usuario',
-        'error',
-        () => goBackToDashboard()
+        () => {
+          goBackToDashboard();
+        }
       );
       return;
     }
 
     try {
       setIsJoining(true);
+
       const updatedRoom = await joinRoomById(room.id, user.id);
 
       if (updatedRoom) {
         const creatorName = updatedRoom.creatorName || 'Usuario desconocido';
-        showCustomAlert(
+        showSuccessModal(
           '¡Éxito!',
           `Te has unido exitosamente a la sala de ${creatorName}`,
-          'success',
-          () => goBackToDashboard()
+          () => {
+            goBackToDashboard();
+          }
         );
       } else {
-        showCustomAlert(
+        showErrorModal(
           'Error al Unirse',
           'No se pudo unir a la sala. Inténtalo nuevamente.',
-          'error'
+          () => {
+            goBackToDashboard();
+          }
         );
       }
     } catch (err) {
-      console.error('Error al unirse a sala:', err);
-      showCustomAlert(
+      showErrorModal(
         'Error',
         err.message || 'Error desconocido al unirse a la sala',
-        'error'
+        () => {
+          goBackToDashboard();
+        }
       );
     } finally {
       setIsJoining(false);
@@ -278,7 +218,6 @@ const JoinRoomScreen = ({ navigation, route }) => {
    */
   const handleClearCode = () => {
     setRoomCode('');
-    setFoundRoom(null);
   };
 
   /**
@@ -286,15 +225,20 @@ const JoinRoomScreen = ({ navigation, route }) => {
    */
   const handlePasteCode = async () => {
     try {
+      // En React Native Web
       if (navigator.clipboard) {
         const text = await navigator.clipboard.readText();
         const formattedCode = formatRoomCode(text);
         setRoomCode(formattedCode);
       }
     } catch (error) {
-      showCustomAlert('Pegar', 'No se pudo pegar desde el portapapeles', 'warning');
+      showWarningModal('Pegar', 'No se pudo pegar desde el portapapeles');
     }
   };
+
+  /**
+   * Formatea fecha para mostrar
+   */
 
   return (
     <SafeAreaView style={styles.container}>
@@ -304,12 +248,17 @@ const JoinRoomScreen = ({ navigation, route }) => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <BackButton onPress={goBackToDashboard} text="← Volver" />
+          <BackButton
+            onPress={goBackToDashboard}
+            text="← Volver"
+          />
+
           <Image
             source={require('../../../assets/images/logoSinFondo.png')}
             style={styles.logo}
-            resizeMode="contain"
+            resizeMode='contain'
           />
+
           <View style={styles.headerSpacer} />
         </View>
 
@@ -326,7 +275,8 @@ const JoinRoomScreen = ({ navigation, route }) => {
           <View style={styles.titleContainer}>
             <Text style={styles.title}>Unirse a Sala</Text>
             <Text style={styles.subtitle}>
-              Ingresa el código de 6 caracteres que te compartió el creador de la sala
+              Ingresa el código de 6 caracteres que te compartió el creador de
+              la sala
             </Text>
           </View>
 
@@ -338,16 +288,19 @@ const JoinRoomScreen = ({ navigation, route }) => {
                 style={styles.input}
                 value={roomCode}
                 onChangeText={handleCodeChange}
-                placeholder="Ej: F75A34"
-                placeholderTextColor="#999"
+                placeholder='Ej: F75A34'
+                placeholderTextColor='#999'
                 maxLength={6}
-                autoCapitalize="characters"
+                autoCapitalize='characters'
                 autoCorrect={false}
-                keyboardType="default"
+                keyboardType='default'
               />
 
               {roomCode.length > 0 && (
-                <TouchableOpacity style={styles.clearButton} onPress={handleClearCode}>
+                <TouchableOpacity
+                  style={styles.clearButton}
+                  onPress={handleClearCode}
+                >
                   <Text style={styles.clearButtonText}>✕</Text>
                 </TouchableOpacity>
               )}
@@ -370,7 +323,10 @@ const JoinRoomScreen = ({ navigation, route }) => {
 
             {/* Botones de acción rápida */}
             <View style={styles.quickActionsContainer}>
-              <TouchableOpacity style={styles.quickActionButton} onPress={handlePasteCode}>
+              <TouchableOpacity
+                style={styles.quickActionButton}
+                onPress={handlePasteCode}
+              >
                 <Text style={styles.quickActionText}>📋 Pegar</Text>
               </TouchableOpacity>
             </View>
@@ -380,10 +336,9 @@ const JoinRoomScreen = ({ navigation, route }) => {
           <View style={styles.infoContainer}>
             <Text style={styles.infoTitle}>💡 Información</Text>
             <Text style={styles.infoText}>
-              • El código debe tener exactamente 6 caracteres{'\n'}
-              • Solo contiene letras mayúsculas y números{'\n'}
-              • El código es único para cada sala{'\n'}
-              • Asegúrate de escribirlo correctamente
+              • El código debe tener exactamente 6 caracteres{'\n'}• Solo
+              contiene letras mayúsculas y números{'\n'}• El código es único
+              para cada sala{'\n'}• Asegúrate de escribirlo correctamente
             </Text>
           </View>
 
@@ -391,10 +346,13 @@ const JoinRoomScreen = ({ navigation, route }) => {
           <TouchableOpacity
             style={[
               styles.searchButton,
-              (!roomCode.trim() || !isValidRoomCode(roomCode)) && styles.searchButtonDisabled,
+              (!roomCode.trim() || !isValidRoomCode(roomCode)) &&
+                styles.searchButtonDisabled,
             ]}
-            onPress={() => handleSearchRoom()}
-            disabled={!roomCode.trim() || !isValidRoomCode(roomCode) || isSearching}
+            onPress={handleSearchRoom}
+            disabled={
+              !roomCode.trim() || !isValidRoomCode(roomCode) || isSearching
+            }
           >
             <Text style={styles.searchButtonText}>
               {isSearching ? '🔍 Buscando...' : '🔍 Buscar Sala'}
@@ -451,44 +409,15 @@ const JoinRoomScreen = ({ navigation, route }) => {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Modal de alerta personalizado */}
-      <Modal
-        animationType="fade"
-        transparent={true}
+      {/* Modal personalizado */}
+      <CustomModal
         visible={modalVisible}
-        onRequestClose={handleModalClose}
-      >
-        <View style={styles.modalOverlay}>
-          <Animated.View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              {/* Icono */}
-              <View style={[
-                styles.modalIconContainer,
-                { backgroundColor: modalData.bgColor || '#D4F6D4' }
-              ]}>
-                <Text style={styles.modalIcon}>{modalData.icon}</Text>
-              </View>
-
-              {/* Título */}
-              <Text style={styles.modalTitle}>{modalData.title}</Text>
-
-              {/* Mensaje */}
-              <Text style={styles.modalMessage}>{modalData.message}</Text>
-
-              {/* Botón OK */}
-              <TouchableOpacity 
-                style={[
-                  styles.modalButton,
-                  { backgroundColor: modalData.buttonColor || '#28A745' }
-                ]}
-                onPress={handleModalClose}
-              >
-                <Text style={styles.modalButtonText}>OK</Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </View>
-      </Modal>
+        title={modalData.title}
+        message={modalData.message}
+        type={modalData.type}
+        onClose={hideModal}
+        confirmText={modalData.confirmText}
+      />
     </SafeAreaView>
   );
 };
