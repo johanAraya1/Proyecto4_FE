@@ -6,6 +6,11 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ScrollView,
+  Image,
+  Modal,
+  FlatList,
+  ActivityIndicator,
+  Animated,
 } from 'react-native';
 import {
   HeaderWithLogo,
@@ -15,14 +20,6 @@ import {
 import { copyRoomCode, navigateToDashboard } from '../../utils';
 import { containers, text, buttons, spacing } from '../../styles/common';
 import { useCustomModal } from '../../hooks/useCustomModal';
-  Image,
-  Clipboard,
-  Alert,
-  Modal,
-  FlatList,
-  ActivityIndicator,
-  Animated,
-} from 'react-native';
 import { useAuth } from '../../controllers/AuthContext';
 import friendService from '../../services/friendService';
 import roomInvitationService from '../../services/roomInvitationService';
@@ -222,15 +219,14 @@ const RoomCreatedScreen = ({ navigation, route }) => {
    */
   const handleCopyRoomCode = async () => {
     if (room?.code) {
-      const success = await copyRoomCode(room.code);
-      if (success) {
-        showSuccessModal(
-          '¡Copiado!',
-          'El código de la sala ha sido copiado al portapapeles'
-        );
+      // En React Native Web
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(room.code);
+        showCustomAlert('¡Copiado!', 'El código de la sala ha sido copiado al portapapeles', 'success');
+      } else {
+        // Fallback - mostrar el código
+        showCustomAlert('Código de Sala', room.code, 'info');
       }
-      Clipboard.setString(room.code);
-      showCustomAlert('¡Copiado!', 'El código de la sala ha sido copiado al portapapeles', 'success');
     }
   };
 
@@ -245,8 +241,6 @@ const RoomCreatedScreen = ({ navigation, route }) => {
    * Comparte el código de la sala (funcionalidad futura)
    */
   const shareRoomCode = () => {
-    showInfoModal('Compartir', 'Funcionalidad de compartir en desarrollo');
-    // TODO: Implementar funcionalidad de compartir
     showCustomAlert('Compartir', 'Funcionalidad en desarrollo', 'info');
   };
 
@@ -321,12 +315,6 @@ const RoomCreatedScreen = ({ navigation, route }) => {
         </View>
 
         {/* Botones de acción */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[buttons.secondary, { flex: 1, marginRight: spacing.sm }]}
-            onPress={shareRoomCode}
-          >
-            <Text style={buttons.secondaryText}>🔗 Compartir</Text>
         <View style={styles.actionContainer}>
           <TouchableOpacity style={styles.inviteButton} onPress={openFriendsModal}>
             <Text style={styles.inviteButtonText}>👥 Invitar a Amigo</Text>
@@ -337,10 +325,10 @@ const RoomCreatedScreen = ({ navigation, route }) => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[buttons.success, { flex: 1, marginLeft: spacing.sm }]}
+            style={styles.backButton}
             onPress={goBackToDashboard}
           >
-            <Text style={buttons.successText}>✅ Continuar</Text>
+            <Text style={styles.backButtonText}>✅ Continuar</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -354,7 +342,6 @@ const RoomCreatedScreen = ({ navigation, route }) => {
         onClose={hideModal}
         confirmText={modalData.confirmText}
       />
-      </View>
 
       {/* Modal de selección de amigos */}
       <Modal
@@ -363,7 +350,7 @@ const RoomCreatedScreen = ({ navigation, route }) => {
         animationType="slide"
         onRequestClose={closeFriendsModal}
       >
-        <View style={styles.modalOverlay}>
+        <View style={styles.friendsModalOverlay}>
           <View style={styles.friendsModalContainer}>
             <View style={styles.friendsModalHeader}>
               <Text style={styles.friendsModalTitle}>Invitar a Amigo</Text>
@@ -609,7 +596,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   // Estilos del modal de amigos
-  modalOverlay: {
+  friendsModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
