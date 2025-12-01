@@ -49,6 +49,59 @@ class AuthService {
   }
 
   /**
+   * Registra un nuevo usuario en el sistema
+   * @param {string} email - Email del usuario
+   * @param {string} password - Contraseña del usuario
+   * @param {string} username - Nombre de usuario
+   * @returns {Promise<Object>} - Promesa que resuelve con la respuesta del servidor
+   * @throws {Error} - Lanza error si el registro falla
+   */
+  async register(email, password, username) {
+    try {
+      // Realizar petición al endpoint de registro
+      const response = await this.apiClient.post('/auth/register', {
+        email,
+        password,
+        username
+      });
+      
+      // Verificar respuesta exitosa
+      if (response.status === 200 || response.status === 201) {
+        return {
+          success: true,
+          data: response.data,
+          message: 'Usuario registrado exitosamente'
+        };
+      } else {
+        throw new Error('Respuesta inválida del servidor');
+      }
+    } catch (error) {
+      // Manejo de errores específicos
+      if (error.response) {
+        // Error del servidor (4xx, 5xx)
+        const status = error.response.status;
+        const message = error.response.data?.message || 'Error del servidor';
+        
+        if (status === 400) {
+          throw new Error(message || 'Datos de registro inválidos');
+        } else if (status === 409) {
+          throw new Error('El usuario ya existe');
+        } else if (status === 404) {
+          throw new Error('Servicio no disponible');
+        } else {
+          throw new Error(message);
+        }
+      } else if (error.request) {
+        // Error de red
+        throw new Error('Error de conexión. Verifica tu conexión a internet.');
+      } else {
+        // Error de validación u otro
+        throw new Error(error.message || 'Error desconocido');
+      }
+    }
+  }
+
+  /**
    * Cierra la sesión del usuario
    * @returns {Promise<boolean>} - Promesa que resuelve verdadero si el logout fue exitoso
    */

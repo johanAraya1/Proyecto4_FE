@@ -1,6 +1,7 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from '../views/screens/LoginScreen';
+import RegisterScreen from '../views/screens/RegisterScreen';
 import DashboardScreen from '../views/screens/DashboardScreen';
 import RoomCreatedScreen from '../views/screens/RoomCreatedScreen';
 import ActiveRoomsScreen from '../views/screens/ActiveRoomsScreen';
@@ -9,6 +10,7 @@ import FeatureFlagsScreen from '../views/screens/FeatureFlagsScreen';
 import GameScreen from '../views/screens/GameScreen';
 import FriendsScreen from '../views/screens/FriendsScreen';
 import FriendRequestsScreen from '../views/screens/FriendRequestsScreen';
+import RoomInvitationsScreen from '../views/screens/RoomInvitationsScreen';
 
 // Crear instancia del stack navigator
 const Stack = createStackNavigator();
@@ -42,6 +44,17 @@ const AppNavigator = () => {
         }}
       />
 
+      
+      {/* Pantalla de Registro */}
+      <Stack.Screen
+        name="Register"
+        component={RegisterScreen}
+        options={{
+          title: 'Crear Cuenta',
+          headerShown: false, // Ocultar header en registro para diseño más limpio
+        }}
+      />
+      
       {/* Pantalla de Dashboard */}
       <Stack.Screen
         name='Dashboard'
@@ -159,6 +172,19 @@ const AppNavigator = () => {
           headerStyle: { backgroundColor: '#6F4E37' },
           headerTintColor: '#FFFFFF',
           headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
+
+      {/* Pantalla de Invitaciones a Salas */}
+      <Stack.Screen
+        name="RoomInvitations"
+        component={RoomInvitationsScreen}
+        options={{
+          title: 'Invitaciones a Salas',
+          headerStyle: { backgroundColor: '#6F4E37' },
+          headerTintColor: '#FFFFFF',
+          headerTitleStyle: { fontWeight: 'bold' },
+          headerShown: false,
         }}
       />
     </Stack.Navigator>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import { useCustomModal } from '../../hooks/useCustomModal';
 import { navigateToDashboard } from '../../utils';
 import styles from '../../styles/JoinRoomScreen.styles';
 
-const JoinRoomScreen = ({ navigation }) => {
+const JoinRoomScreen = ({ navigation, route }) => {
   const { user } = useAuth();
   const { getRoomByCode, joinRoomById } = useRoom();
   const [roomCode, setRoomCode] = useState('');
@@ -34,6 +34,100 @@ const JoinRoomScreen = ({ navigation }) => {
     showWarningModal,
     hideModal,
   } = useCustomModal();
+  // Obtener código prellenado de los parámetros de navegación (si viene de invitación)
+  const prefilledCode = route.params?.prefilledCode;
+
+  // Estados para el modal personalizado
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalData, setModalData] = useState({
+    title: '',
+    message: '',
+    icon: '',
+    type: 'success', // 'success' | 'error'
+    onConfirm: null
+  });
+
+  /**
+   * Efecto para código prellenado - buscar automáticamente
+   */
+  useEffect(() => {
+    if (prefilledCode) {
+      const formattedCode = formatRoomCode(prefilledCode);
+      setRoomCode(formattedCode);
+      // Buscar automáticamente después de un pequeño delay
+      setTimeout(() => {
+        handleSearchRoom(formattedCode);
+      }, 500);
+    }
+  }, [prefilledCode]);
+
+  /**
+   * Función para mostrar modal personalizado
+   */
+  const showCustomAlert = (title, message, type = 'success', onConfirm = null) => {
+    console.log('🚨 showCustomAlert llamada:', title);
+    
+    const iconMap = {
+      success: '🎉',
+      error: '❌',
+      warning: '⚠️',
+      info: 'ℹ️'
+    };
+
+    const colorMap = {
+      success: '#D4F6D4',
+      error: '#FFE6E6', 
+      warning: '#FFF3CD',
+      info: '#D1ECF1'
+    };
+
+    const buttonColorMap = {
+      success: '#28A745',
+      error: '#DC3545',
+      warning: '#FFC107',
+      info: '#17A2B8'
+    };
+
+    setModalData({
+      title,
+      message,
+      icon: iconMap[type] || '🎉',
+      type,
+      onConfirm,
+      bgColor: colorMap[type] || '#D4F6D4',
+      buttonColor: buttonColorMap[type] || '#28A745'
+    });
+    setModalVisible(true);
+  };
+
+  /**
+   * Maneja el cierre del modal
+   */
+  const handleModalClose = () => {
+    console.log('🔄 Cerrando modal...');
+    setModalVisible(false);
+    
+    // Ejecutar callback si existe
+    if (modalData.onConfirm) {
+      console.log('🔄 Ejecutando callback del modal...');
+      setTimeout(() => {
+        modalData.onConfirm();
+      }, 300); // Pequeña pausa para la animación
+    }
+    
+    // Limpiar datos del modal
+    setTimeout(() => {
+      setModalData({
+        title: '',
+        message: '',
+        icon: '',
+        type: 'success',
+        onConfirm: null,
+        bgColor: '#D4F6D4',
+        buttonColor: '#28A745'
+      });
+    }, 300);
+  };
 
   /**
    * Navega de vuelta al dashboard
@@ -84,6 +178,19 @@ const JoinRoomScreen = ({ navigation }) => {
         'Error',
         'El código debe tener exactamente 6 caracteres alfanuméricos'
       );
+  const handleSearchRoom = async (codeToSearch = null) => {
+    // Si codeToSearch es un evento (tiene target), usar roomCode en su lugar
+    const searchCode = (codeToSearch && typeof codeToSearch === 'string') ? codeToSearch : roomCode;
+    console.log('🔍 Buscando sala con código:', searchCode);
+
+    // Validar código
+    if (!searchCode || !searchCode.trim()) {
+      showCustomAlert('Error', 'Por favor ingresa un código de sala', 'error');
+      return;
+    }
+
+    if (!isValidCode(searchCode)) {
+      showCustomAlert('Error', 'El código debe tener exactamente 6 caracteres alfanuméricos', 'error');
       return;
     }
 
@@ -101,6 +208,28 @@ const JoinRoomScreen = ({ navigation }) => {
           showErrorModal(
             'Ya eres miembro',
             message || `Ya formas parte de esta sala como ${userRole}`
+      
+      // Buscar la sala
+      const room = await getRoomByCode(searchCode);
+      
+      if (room) {
+        console.log('✅ Sala encontrada:', room);
+        console.log('📊 Datos del creador:', {
+          creatorId: room.creatorId,
+          creatorName: room.creatorName,
+          getCreatorName: room.getCreatorName()
+        });
+        console.log('📅 Datos de fecha:', {
+          createdAt: room.createdAt,
+          formatted: formatCreatedDate(room.createdAt)
+        });
+        
+        // Verificar si la sala puede aceptar jugadores
+        if (room.isFull()) {
+          showCustomAlert(
+            'Sala Completa',
+            'Esta sala ya tiene 2 jugadores. No puedes unirte.',
+            'warning'
           );
           return; // Detener el flujo
         }

@@ -57,6 +57,44 @@ export const useAuthController = () => {
   };
 
   /**
+   * Realiza el proceso de registro
+   * @param {string} email - Email del usuario
+   * @param {string} password - Contraseña del usuario
+   * @param {string} username - Nombre de usuario
+   * @returns {Promise<boolean>} - Promesa que resuelve verdadero si el registro fue exitoso
+   */
+  const register = async (email, password, username) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Crear instancia del modelo User
+      const userModel = new User(email, password);
+      
+      // Validar datos antes de enviar
+      if (!userModel.isValid()) {
+        throw new Error('Por favor ingresa datos válidos');
+      }
+
+      // Llamar al servicio de registro
+      const response = await authService.register(email, password, username);
+      
+      if (response.success) {
+        console.log('✅ Usuario registrado exitosamente');
+        return true;
+      } else {
+        throw new Error(response.error || 'Error en el registro');
+      }
+    } catch (err) {
+      console.log('❌ Error en registro:', err.message);
+      setError(err.message);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
    * Realiza el proceso de logout
    * @returns {Promise<boolean>} - Promesa que resuelve verdadero si el logout fue exitoso
    */
@@ -152,6 +190,7 @@ export const useAuthController = () => {
 
     // Acciones
     login,
+    register,
     logout,
     clearError,
     validateFields,
