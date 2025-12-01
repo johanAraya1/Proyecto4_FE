@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import { useCustomModal } from '../../hooks/useCustomModal';
 import { navigateToDashboard } from '../../utils';
 import styles from '../../styles/JoinRoomScreen.styles';
 
-const JoinRoomScreen = ({ navigation }) => {
+const JoinRoomScreen = ({ navigation, route }) => {
   const { user } = useAuth();
   const { getRoomByCode, joinRoomById } = useRoom();
   const [roomCode, setRoomCode] = useState('');
@@ -25,7 +25,18 @@ const JoinRoomScreen = ({ navigation }) => {
   const [foundRoom, setFoundRoom] = useState(null);
   const [isJoining, setIsJoining] = useState(false);
 
+  // eslint-disable-next-line no-console
   console.log('👤 Usuario en JoinRoomScreen:', user);
+
+  // Prellenar el código si viene desde una invitación aceptada
+  useEffect(() => {
+    if (route?.params?.prefilledCode) {
+      const code = formatRoomCode(route.params.prefilledCode);
+      setRoomCode(code);
+      // eslint-disable-next-line no-console
+      console.log('📋 Código prellenado desde invitación:', code);
+    }
+  }, [route?.params?.prefilledCode]);
 
   // Hook para manejar modales
   const {

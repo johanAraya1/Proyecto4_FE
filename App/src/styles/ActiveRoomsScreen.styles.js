@@ -15,6 +15,7 @@ const COLORS = {
   TEXTO_CLARO: '#666',
   BORDE: '#E5E5E5',
   SUCCESS: '#28A745',        // Verde éxito
+  ERROR: '#DC3545',          // Rojo error
   DISABLED: '#A0A0A0',       // Gris deshabilitado
 };
 
@@ -238,6 +239,43 @@ export const styles = StyleSheet.create({
   playButtonText: {
     color: COLORS.BLANCO,
     fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // Acciones de invitación
+  invitationActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+
+  acceptButton: {
+    backgroundColor: COLORS.SUCCESS,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 6,
+    flex: 1,
+    alignItems: 'center',
+    marginRight: 8,
+  },
+
+  acceptButtonText: {
+    color: COLORS.BLANCO,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  rejectButton: {
+    backgroundColor: COLORS.ERROR,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 6,
+    flex: 1,
+    alignItems: 'center',
+  },
+
+  rejectButtonText: {
+    color: COLORS.BLANCO,
+    fontSize: 13,
     fontWeight: '600',
   },
 

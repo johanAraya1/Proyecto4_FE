@@ -113,6 +113,94 @@ const RoomCard = memo(({ room, onPlay, onCopy, loadingRoom, currentUserId }) => 
 });
 RoomCard.displayName = 'RoomCard';
 
+/**
+ * InvitationCard: componente para mostrar tarjetas de invitaciones con botones de aceptar/rechazar
+ */
+const InvitationCard = memo(({ room, onAccept, onReject, processingInvitationId }) => {
+  const isProcessing = processingInvitationId === room.invitationId;
+  
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'waiting':
+        return '#FFD166';
+      case 'playing':
+        return '#28A745';
+      case 'finished':
+        return '#6C757D';
+      default:
+        return '#6C757D';
+    }
+  };
+
+  return (
+    <View style={styles.roomCard}>
+      <View style={styles.roomHeader}>
+        <View style={styles.roomCodeContainer}>
+          <Text style={styles.roomCodeLabel}>Código:</Text>
+          <Text style={styles.roomCode}>{room.code}</Text>
+        </View>
+        <View style={styles.statusContainer}>
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: getStatusColor(room.status) },
+            ]}
+          />
+          <Text style={styles.statusText}>{room.getStatusInSpanish()}</Text>
+        </View>
+      </View>
+
+      <View style={styles.roomInfo}>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Creador:</Text>
+          <Text style={styles.infoValue}>{room.getCreatorName()}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Jugadores:</Text>
+          <Text style={styles.infoValue}>{room.getPlayerCount()}/2</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Creada:</Text>
+          <Text style={styles.infoValue}>{room.getFormattedCreatedAt()}</Text>
+        </View>
+      </View>
+
+      <View style={styles.invitationActions}>
+        <TouchableOpacity
+          style={[styles.acceptButton, isProcessing && styles.disabledButton]}
+          onPress={() => onAccept(room)}
+          disabled={isProcessing}
+        >
+          {isProcessing ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={styles.acceptButtonText}>✓ Aceptar</Text>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.rejectButton, isProcessing && styles.disabledButton]}
+          onPress={() => onReject(room)}
+          disabled={isProcessing}
+        >
+          {isProcessing ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={styles.rejectButtonText}>✕ Rechazar</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}, (prev, next) => {
+  return (
+    prev.room.id === next.room.id &&
+    prev.room.code === next.room.code &&
+    prev.room.status === next.room.status &&
+    prev.processingInvitationId === next.processingInvitationId
+  );
+});
+InvitationCard.displayName = 'InvitationCard';
+
 const ActiveRoomsScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { getUserRooms, loading, error, userRooms } = useRoom();
@@ -122,7 +210,7 @@ const ActiveRoomsScreen = ({ navigation }) => {
   const [selectedTab, setSelectedTab] = useState('Todas');
   const [filteredRooms, setFilteredRooms] = useState(userRooms);
   const [invitedRooms, setInvitedRooms] = useState([]);
-  const [loadingInvitations, setLoadingInvitations] = useState(false);
+  const [processingInvitationId, setProcessingInvitationId] = useState(null);
   const debouncedSearch = useDebounce(searchText, 400);
 
   // Hook para modales personalizados
@@ -157,27 +245,29 @@ const ActiveRoomsScreen = ({ navigation }) => {
    */
   const loadInvitedRooms = async () => {
     if (user?.id) {
-      setLoadingInvitations(true);
       try {
         const rooms = await roomInvitationService.getInvitedRooms(user.id);
-        // Convertir los objetos planos a instancias de Room
-        const roomInstances = rooms.map(room => new Room(
-          room.id,
-          room.code,
-          room.creator_id,
-          user.id, // El usuario invitado es el oponente
-          room.status,
-          room.created_at,
-          null,
-          null,
-          room.creator_name,
-          null
-        ));
+        // Convertir los objetos planos a instancias de Room y agregar invitationId
+        const roomInstances = rooms.map(room => {
+          const roomInstance = new Room(
+            room.id,
+            room.code,
+            room.creator_id,
+            user.id, // El usuario invitado es el oponente
+            room.status,
+            room.created_at,
+            null,
+            null,
+            room.creator_name,
+            null
+          );
+          // Agregar el invitationId como propiedad adicional
+          roomInstance.invitationId = room.invitationId;
+          return roomInstance;
+        });
         setInvitedRooms(roomInstances);
       } catch (error) {
-        console.error('Error al cargar invitaciones:', error);
-      } finally {
-        setLoadingInvitations(false);
+        // Error silencioso para no interrumpir la carga
       }
     }
   };
@@ -197,6 +287,81 @@ const ActiveRoomsScreen = ({ navigation }) => {
   const goBackToDashboard = () => {
     navigation.navigate('Dashboard');
   };
+
+  /**
+   * Acepta una invitación a una sala
+   */
+  const handleAcceptInvitation = useCallback(async (room) => {
+    // eslint-disable-next-line no-console
+    console.log('🎯 Intentando aceptar invitación:', { room, userId: user?.id, invitationId: room.invitationId });
+    
+    if (!user?.id) {
+      showErrorModal('No se pudo obtener la información del usuario');
+      return;
+    }
+    
+    if (!room.invitationId) {
+      showErrorModal('No se encontró el ID de la invitación');
+      return;
+    }
+
+    try {
+      setProcessingInvitationId(room.invitationId);
+      await roomInvitationService.acceptInvitation(room.invitationId, user.id);
+      setProcessingInvitationId(null);
+
+      // Recargar invitaciones primero
+      await loadInvitedRooms();
+      
+      // Navegar directamente a JoinRoom con el código prefijado
+      // eslint-disable-next-line no-console
+      console.log('✅ Navegando a JoinRoom con código:', room.code);
+      navigation.navigate('JoinRoom', {
+        prefilledCode: room.code
+      });
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('❌ Error al aceptar invitación:', error);
+      showErrorModal(error.message || 'No se pudo aceptar la invitación');
+      setProcessingInvitationId(null);
+    }
+  }, [user, navigation, loadInvitedRooms, showErrorModal]);
+
+  /**
+   * Rechaza una invitación a una sala
+   */
+  const handleRejectInvitation = useCallback(async (room) => {
+    // eslint-disable-next-line no-console
+    console.log('🚫 Intentando rechazar invitación:', { room, userId: user?.id, invitationId: room.invitationId });
+    
+    if (!user?.id) {
+      showErrorModal('No se pudo obtener la información del usuario');
+      return;
+    }
+    
+    if (!room.invitationId) {
+      showErrorModal('No se encontró el ID de la invitación');
+      return;
+    }
+
+    try {
+      setProcessingInvitationId(room.invitationId);
+      // eslint-disable-next-line no-console
+      console.log('🗑️ Rechazando invitación:', room.invitationId);
+      await roomInvitationService.rejectInvitation(room.invitationId, user.id);
+      
+      showSuccessModal('Has rechazado la invitación exitosamente');
+      
+      // Recargar la lista de invitaciones
+      await loadInvitedRooms();
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('❌ Error al rechazar invitación:', error);
+      showErrorModal(error.message || 'No se pudo rechazar la invitación');
+    } finally {
+      setProcessingInvitationId(null);
+    }
+  }, [user, loadInvitedRooms, showErrorModal, showSuccessModal]);
 
 
 
@@ -239,17 +404,32 @@ const ActiveRoomsScreen = ({ navigation }) => {
   }, [navigation, user?.id, showErrorModal]);
 
   /**
-   * Renderiza cada sala en la lista utilizando el componente memoizado RoomCard
+   * Renderiza cada sala en la lista utilizando el componente memoizado RoomCard o InvitationCard
    */
-  const renderRoomItem = useCallback(({ item: room }) => (
-    <RoomCard
-      room={room}
-      onPlay={playInRoomCb}
-      onCopy={copyRoomCodeToClipboardCb}
-      loadingRoom={loadingRoom}
-      currentUserId={user?.id}
-    />
-  ), [playInRoomCb, copyRoomCodeToClipboardCb, loadingRoom, user?.id]);
+  const renderRoomItem = useCallback(({ item: room }) => {
+    // Si estamos en la pestaña de Invitaciones, usar InvitationCard
+    if (selectedTab === 'Invitaciones') {
+      return (
+        <InvitationCard
+          room={room}
+          onAccept={handleAcceptInvitation}
+          onReject={handleRejectInvitation}
+          processingInvitationId={processingInvitationId}
+        />
+      );
+    }
+    
+    // Para las demás pestañas, usar RoomCard
+    return (
+      <RoomCard
+        room={room}
+        onPlay={playInRoomCb}
+        onCopy={copyRoomCodeToClipboardCb}
+        loadingRoom={loadingRoom}
+        currentUserId={user?.id}
+      />
+    );
+  }, [selectedTab, playInRoomCb, copyRoomCodeToClipboardCb, loadingRoom, processingInvitationId, user?.id, handleAcceptInvitation, handleRejectInvitation]);
 
   
 
