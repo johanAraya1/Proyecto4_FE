@@ -53,7 +53,9 @@ export const ENDPOINTS = {
     BASE: '/rooms',
     JOIN: '/rooms/join',
     LEAVE: '/rooms/leave',
-    CREATE: '/rooms/create',
+    CREATE: '/rooms',
+    BY_CODE: '/rooms/code',
+    GAME_DETAILS: '/rooms/{roomCode}/game-details',
   },
 
   // Telemetría

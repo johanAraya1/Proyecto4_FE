@@ -44,287 +44,272 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
   
   // ============ WEBSOCKET CONNECTION ============
   useEffect(() => {
-    if (roomCode && roomData?.id && userId) {
-
-
-
-
-      
-      gameWebSocketService.connect(roomCode, roomData.id, userId);
-      
-      // Listeners para eventos del servidor
-      gameWebSocketService.on('connected', () => {
-        // Conectado exitosamente
-      });
-      
-      // SINCRONIZACIÓN EN TIEMPO REAL: Actualizar estado del juego
-      gameWebSocketService.on('gameStateUpdate', (payload) => {
-        if (!payload.gameState) return;
-        
-        const backendState = payload.gameState;
-        
-        // ⭐ Detectar penalización y mostrar modal
-        if (payload.penalty && payload.penalty.playerId === userId) {
-          showModal(
-            '⚠️ Penalización',
-            `${payload.penalty.message}\n\nSe han deducido ${payload.penalty.amount} puntos de tu marcador.`,
-            'warning',
-            null,
-            'Entendido'
-          );
-        }
-        
-        // Función auxiliar para convertir orden del backend al formato del frontend
-        const convertOrderFromBackendFormat = (backendOrder) => {
-          if (!backendOrder) return null;
-          
-          // Si ya tiene el formato del frontend (name, points), devolverlo tal como está
-          if (backendOrder.name && backendOrder.points !== undefined) {
-            return backendOrder;
-          }
-          
-          // Si tiene formato del backend (recipe, reward), convertir al formato del frontend
-          if (backendOrder.recipe && backendOrder.reward !== undefined) {
-            return {
-              id: backendOrder.id,
-              name: backendOrder.recipe,
-              points: backendOrder.reward,
-              ingredients: backendOrder.ingredients
-            };
-          }
-          
-          return backendOrder;
-        };
-        
-        // Actualizar posiciones si vienen
-        if (backendState.playerPositions) {
-          setPlayerPositions(backendState.playerPositions);
-        }
-        
-        // Actualizar movementCount si viene
-        if (backendState.movementCount !== undefined) {
-          setMovementCount(backendState.movementCount);
-        }
-        
-        // Actualizar ingredientGrid si viene
-        if (backendState.ingredientGrid) {
-          setIngredientGrid(backendState.ingredientGrid);
-        }
-        
-        // Actualizar estado del juego (currentTurn y datos de jugadores)
-        setGameState((prev) => {
-          const newState = { ...prev };
-          
-          // Actualizar currentTurn si viene
-          if (backendState.currentTurn !== undefined) {
-            newState.currentTurn = backendState.currentTurn;
-          }
-          
-          // Actualizar player1 si vienen sus datos
-          if (backendState.player1) {
-            const convertedOrders = backendState.player1.orders ? backendState.player1.orders.map(convertOrderFromBackendFormat) : prev.player1.orders;
-            
-            newState.player1 = {
-              ...prev.player1,
-              name: backendState.player1.name || prev.player1.name,
-              score: backendState.player1.score !== undefined ? backendState.player1.score : prev.player1.score,
-              inventory: backendState.player1.inventory || prev.player1.inventory,
-              turnsCompleted: backendState.player1.turnsCompleted !== undefined ? backendState.player1.turnsCompleted : prev.player1.turnsCompleted,
-              orders: convertedOrders
-            };
-          }
-          
-          // Actualizar player2 si vienen sus datos
-          if (backendState.player2) {
-            const convertedOrders = backendState.player2.orders ? backendState.player2.orders.map(convertOrderFromBackendFormat) : prev.player2.orders;
-            
-            newState.player2 = {
-              ...prev.player2,
-              name: backendState.player2.name || prev.player2.name,
-              score: backendState.player2.score !== undefined ? backendState.player2.score : prev.player2.score,
-              inventory: backendState.player2.inventory || prev.player2.inventory,
-              turnsCompleted: backendState.player2.turnsCompleted !== undefined ? backendState.player2.turnsCompleted : prev.player2.turnsCompleted,
-              orders: convertedOrders
-            };
-          }
-          
-          return newState;
-        });
-      });
-      
-      // SINCRONIZACIÓN EN TIEMPO REAL: Ver movimientos del oponente
-      gameWebSocketService.on('playerMove', (payload) => {
-        if (!payload) return;
-        
-        // Solo actualizar si el movimiento es del OTRO jugador
-        const isMyMove = payload.playerId === userId;
-        if (isMyMove) return; // No actualizar mis propios movimientos
-        
-        // Actualizar posición del oponente
-        if (payload.to && Array.isArray(payload.to)) {
-          const newRow = payload.to[0];
-          const newCol = payload.to[1];
-          
-          setPlayerPositions((prev) => {
-            // Determinar si el movimiento es del jugador 1 o 2
-            const isPlayer1Move = payload.playerId === roomData?.creatorId;
-            
-            return {
-              ...prev,
-              [isPlayer1Move ? 'player1' : 'player2']: { row: newRow, col: newCol }
-            };
-          });
-        }
-        
-        // Actualizar inventario del oponente si el backend lo envía
-        if (payload.ingredient) {
-          setGameState((prev) => {
-            const isPlayer1Move = payload.playerId === roomData?.creatorId;
-            const playerKey = isPlayer1Move ? 'player1' : 'player2';
-            
-            return {
-              ...prev,
-              [playerKey]: {
-                ...prev[playerKey],
-                inventory: {
-                  ...prev[playerKey].inventory,
-                  [payload.ingredient]: (prev[playerKey].inventory[payload.ingredient] || 0) + 1
-                }
-              }
-            };
-          });
-        }
-        
-        // Actualizar contador de movimientos
-        if (payload.movementCount !== undefined) {
-          setMovementCount(payload.movementCount);
-        }
-      });
-      
-      // SINCRONIZACIÓN EN TIEMPO REAL: Ver canje de orden (propio o del oponente)
-      gameWebSocketService.on('trade', (payload) => {
-        if (!payload) return;
-        
-        setGameState((prev) => {
-          const isPlayer1Trade = payload.playerId === roomData?.creatorId;
-          const playerKey = isPlayer1Trade ? 'player1' : 'player2';
-          
-          const updatedState = { ...prev };
-          
-          // ⭐ Actualizar score con el valor que viene del backend (NO sumar localmente)
-          if (payload.totalPoints !== undefined || payload.pointsEarned !== undefined) {
-            const points = payload.totalPoints || payload.pointsEarned;
-            updatedState[playerKey] = {
-              ...prev[playerKey],
-              score: prev[playerKey].score + points  // El backend envía los puntos a sumar
-            };
-          }
-          
-          // ⭐ Actualizar órdenes con el array completo que viene del backend
-          if (payload.newOrders && Array.isArray(payload.newOrders)) {
-            // Convertir órdenes del backend al formato del frontend si es necesario
-            const convertOrderFromBackendFormat = (backendOrder) => {
-              if (!backendOrder) return null;
-              
-              if (backendOrder.name && backendOrder.points !== undefined) {
-                return backendOrder;
-              }
-              
-              if (backendOrder.recipe && backendOrder.reward !== undefined) {
-                return {
-                  id: backendOrder.id,
-                  name: backendOrder.recipe,
-                  points: backendOrder.reward,
-                  ingredients: backendOrder.ingredients
-                };
-              }
-              
-              return backendOrder;
-            };
-            
-            const formattedOrders = payload.newOrders.map(convertOrderFromBackendFormat);
-            
-            updatedState[playerKey] = {
-              ...updatedState[playerKey],
-              orders: formattedOrders
-            };
-          }
-          
-          // ⭐ Actualizar inventario con el valor que viene del backend
-          if (payload.updatedInventory) {
-            updatedState[playerKey] = {
-              ...updatedState[playerKey],
-              inventory: payload.updatedInventory
-            };
-          }
-          
-          return updatedState;
-        });
-      });
-      
-      // SINCRONIZACIÓN EN TIEMPO REAL: Ver cambio de turno
-      gameWebSocketService.on('turnChanged', (payload) => {
-        if (payload && payload.turnNumber) {
-          // Solo actualizar si el turno cambió al OTRO jugador
-          // No actualizar si soy yo quien acaba de finalizar el turno
-          setGameState((prev) => {
-            // Si el turno ya es el correcto, no hacer nada (evitar loop)
-            if (prev.currentTurn === payload.turnNumber) {
-              return prev;
-            }
-            
-            return {
-              ...prev,
-              currentTurn: payload.turnNumber
-            };
-          });
-        }
-      });
-      
-      // GAME ENDED: Detectar fin del juego y mostrar modal de victoria/derrota
-      gameWebSocketService.on('gameEnded', (payload) => {
-        if (!payload) return;
-        
-        const isWinner = payload.winnerId === userId;
-        const eloChange = isWinner ? payload.eloChanges.winner : payload.eloChanges.loser;
-        const eloSign = eloChange > 0 ? '+' : '';
-        
-        if (isWinner) {
-          showModal(
-            '🏆 ¡Victoria!',
-            `¡Felicidades! Has ganado la partida con ${payload.winnerScore} puntos.\n\nTu oponente obtuvo ${payload.loserScore} puntos.\n\nELO: ${eloSign}${eloChange}`,
-            'success',
-            () => {
-              hideModal();
-              // Navegar de vuelta al dashboard después de cerrar el modal
-              if (navigation) {
-                navigation.navigate('Dashboard');
-              }
-            },
-            'Volver al menú'
-          );
-        } else {
-          showModal(
-            '😔 Derrota',
-            `Tu oponente ha ganado la partida con ${payload.winnerScore} puntos.\n\nObtuviste ${payload.loserScore} puntos.\n\nELO: ${eloSign}${eloChange}`,
-            'error',
-            () => {
-              hideModal();
-              // Navegar de vuelta al dashboard después de cerrar el modal
-              if (navigation) {
-                navigation.navigate('Dashboard');
-              }
-            },
-            'Volver al menú'
-          );
-        }
-      });
-      
-      return () => {
-
-        gameWebSocketService.disconnect();
-      };
+    if (!roomCode || !roomData?.id || !userId) {
+      return;
     }
+    
+    // Conectar al WebSocket
+    gameWebSocketService.connect(roomCode, roomData.id, userId);
+    
+    // Handler para conexión exitosa
+    const handleConnected = () => {
+      // Conectado exitosamente
+    };
+    
+    // Handler para actualización del estado del juego
+    const handleGameStateUpdate = (payload) => {
+      if (!payload.gameState) return;
+      
+      const backendState = payload.gameState;
+      
+      if (payload.penalty && payload.penalty.playerId === userId) {
+        showModal(
+          '⚠️ Penalización',
+          `${payload.penalty.message}\n\nSe han deducido ${payload.penalty.amount} puntos de tu marcador.`,
+          'warning',
+          null,
+          'Entendido'
+        );
+      }
+      
+      const convertOrderFromBackendFormat = (backendOrder) => {
+        if (!backendOrder) return null;
+        if (backendOrder.name && backendOrder.points !== undefined) {
+          return backendOrder;
+        }
+        if (backendOrder.recipe && backendOrder.reward !== undefined) {
+          return {
+            id: backendOrder.id,
+            name: backendOrder.recipe,
+            points: backendOrder.reward,
+            ingredients: backendOrder.ingredients
+          };
+        }
+        return backendOrder;
+      };
+      
+      if (backendState.playerPositions) {
+        setPlayerPositions(backendState.playerPositions);
+      }
+      
+      if (backendState.movementCount !== undefined) {
+        setMovementCount(backendState.movementCount);
+      }
+      
+      if (backendState.ingredientGrid) {
+        setIngredientGrid(backendState.ingredientGrid);
+      }
+      
+      setGameState((prev) => {
+        const newState = { ...prev };
+        
+        if (backendState.currentTurn !== undefined) {
+          newState.currentTurn = backendState.currentTurn;
+        }
+        
+        if (backendState.player1) {
+          const convertedOrders = backendState.player1.orders ? backendState.player1.orders.map(convertOrderFromBackendFormat) : prev.player1.orders;
+          
+          newState.player1 = {
+            ...prev.player1,
+            name: backendState.player1.name || prev.player1.name,
+            score: backendState.player1.score !== undefined ? backendState.player1.score : prev.player1.score,
+            inventory: backendState.player1.inventory || prev.player1.inventory,
+            turnsCompleted: backendState.player1.turnsCompleted !== undefined ? backendState.player1.turnsCompleted : prev.player1.turnsCompleted,
+            orders: convertedOrders
+          };
+        }
+        
+        if (backendState.player2) {
+          const convertedOrders = backendState.player2.orders ? backendState.player2.orders.map(convertOrderFromBackendFormat) : prev.player2.orders;
+          
+          newState.player2 = {
+            ...prev.player2,
+            name: backendState.player2.name || prev.player2.name,
+            score: backendState.player2.score !== undefined ? backendState.player2.score : prev.player2.score,
+            inventory: backendState.player2.inventory || prev.player2.inventory,
+            turnsCompleted: backendState.player2.turnsCompleted !== undefined ? backendState.player2.turnsCompleted : prev.player2.turnsCompleted,
+            orders: convertedOrders
+          };
+        }
+        
+        return newState;
+      });
+    };
+    
+    // Registrar todos los handlers
+    gameWebSocketService.on('connected', handleConnected);
+    gameWebSocketService.on('gameStateUpdate', handleGameStateUpdate);
+    
+    // Handler para movimientos del oponente
+    const handlePlayerMove = (payload) => {
+      if (!payload) return;
+      
+      const isMyMove = payload.playerId === userId;
+      if (isMyMove) return;
+      
+      if (payload.to && Array.isArray(payload.to)) {
+        const newRow = payload.to[0];
+        const newCol = payload.to[1];
+        
+        setPlayerPositions((prev) => {
+          const isPlayer1Move = payload.playerId === roomData?.creatorId;
+          return {
+            ...prev,
+            [isPlayer1Move ? 'player1' : 'player2']: { row: newRow, col: newCol }
+          };
+        });
+      }
+      
+      if (payload.ingredient) {
+        setGameState((prev) => {
+          const isPlayer1Move = payload.playerId === roomData?.creatorId;
+          const playerKey = isPlayer1Move ? 'player1' : 'player2';
+          
+          return {
+            ...prev,
+            [playerKey]: {
+              ...prev[playerKey],
+              inventory: {
+                ...prev[playerKey].inventory,
+                [payload.ingredient]: (prev[playerKey].inventory[payload.ingredient] || 0) + 1
+              }
+            }
+          };
+        });
+      }
+      
+      if (payload.movementCount !== undefined) {
+        setMovementCount(payload.movementCount);
+      }
+    };
+    
+    gameWebSocketService.on('playerMove', handlePlayerMove);
+    
+    // Handler para canje de órdenes (trade)
+    const handleTrade = (payload) => {
+      if (!payload) return;
+      
+      setGameState((prev) => {
+        const isPlayer1Trade = payload.playerId === roomData?.creatorId;
+        const playerKey = isPlayer1Trade ? 'player1' : 'player2';
+        
+        const updatedState = { ...prev };
+        
+        if (payload.totalPoints !== undefined || payload.pointsEarned !== undefined) {
+          const points = payload.totalPoints || payload.pointsEarned;
+          updatedState[playerKey] = {
+            ...prev[playerKey],
+            score: prev[playerKey].score + points
+          };
+        }
+        
+        if (payload.newOrders && Array.isArray(payload.newOrders)) {
+          const convertOrderFromBackendFormat = (backendOrder) => {
+            if (!backendOrder) return null;
+            if (backendOrder.name && backendOrder.points !== undefined) {
+              return backendOrder;
+            }
+            if (backendOrder.recipe && backendOrder.reward !== undefined) {
+              return {
+                id: backendOrder.id,
+                name: backendOrder.recipe,
+                points: backendOrder.reward,
+                ingredients: backendOrder.ingredients
+              };
+            }
+            return backendOrder;
+          };
+          
+          const formattedOrders = payload.newOrders.map(convertOrderFromBackendFormat);
+          updatedState[playerKey] = {
+            ...updatedState[playerKey],
+            orders: formattedOrders
+          };
+        }
+        
+        if (payload.updatedInventory) {
+          updatedState[playerKey] = {
+            ...updatedState[playerKey],
+            inventory: payload.updatedInventory
+          };
+        }
+        
+        return updatedState;
+      });
+    };
+    
+    gameWebSocketService.on('trade', handleTrade);
+    
+    // Handler para cambio de turno
+    const handleTurnChanged = (payload) => {
+      if (payload && payload.turnNumber) {
+        setGameState((prev) => {
+          if (prev.currentTurn === payload.turnNumber) {
+            return prev;
+          }
+          return {
+            ...prev,
+            currentTurn: payload.turnNumber
+          };
+        });
+      }
+    };
+    
+    gameWebSocketService.on('turnChanged', handleTurnChanged);
+    
+    // Handler para fin de juego
+    const handleGameEnded = (payload) => {
+      if (!payload) return;
+      
+      const isWinner = payload.winnerId === userId;
+      const eloChange = isWinner ? payload.eloChanges.winner : payload.eloChanges.loser;
+      const eloSign = eloChange > 0 ? '+' : '';
+      
+      if (isWinner) {
+        showModal(
+          '🏆 ¡Victoria!',
+          `¡Felicidades! Has ganado la partida con ${payload.winnerScore} puntos.\n\nTu oponente obtuvo ${payload.loserScore} puntos.\n\nELO: ${eloSign}${eloChange}`,
+          'success',
+          () => {
+            hideModal();
+            if (navigation) {
+              navigation.navigate('Dashboard');
+            }
+          },
+          'Volver al menú'
+        );
+      } else {
+        showModal(
+          '😔 Derrota',
+          `Tu oponente ha ganado la partida con ${payload.winnerScore} puntos.\n\nObtuviste ${payload.loserScore} puntos.\n\nELO: ${eloSign}${eloChange}`,
+          'error',
+          () => {
+            hideModal();
+            if (navigation) {
+              navigation.navigate('Dashboard');
+            }
+          },
+          'Volver al menú'
+        );
+      }
+    };
+    
+    gameWebSocketService.on('gameEnded', handleGameEnded);
+    
+    // Cleanup function
+    return () => {
+      // Remover todos los event listeners
+      gameWebSocketService.off('connected', handleConnected);
+      gameWebSocketService.off('gameStateUpdate', handleGameStateUpdate);
+      gameWebSocketService.off('playerMove', handlePlayerMove);
+      gameWebSocketService.off('trade', handleTrade);
+      gameWebSocketService.off('turnChanged', handleTurnChanged);
+      gameWebSocketService.off('gameEnded', handleGameEnded);
+      
+      // Desconectar WebSocket
+      gameWebSocketService.disconnect();
+    };
   }, [roomCode, roomData?.id, userId]);
   
   useEffect(() => {

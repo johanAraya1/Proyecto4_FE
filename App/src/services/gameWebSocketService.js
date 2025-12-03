@@ -46,6 +46,8 @@ class GameWebSocketService {
       host = host.replace(/^localhost/, '10.0.2.2').replace(/^127\.0\.0\.1/, '10.0.2.2');
     }
 
+    // ⚠️ IMPORTANTE: roomCode en path, userId en query
+    // Formato: ws://host/game/{roomCode}?userId={id}
     const socketUrl = `${wsProtocol}://${host}/game/${roomCode}?userId=${userId}`;
 
     try {
@@ -74,6 +76,7 @@ class GameWebSocketService {
         this.attemptReconnect(roomCode, roomId, userId);
       };
     } catch (error) {
+      console.error('💥 Error creando WebSocket:', error);
       this.emit('error', error);
     }
   }
