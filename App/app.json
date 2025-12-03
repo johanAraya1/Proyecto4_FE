@@ -35,11 +35,6 @@
       "enabled": false,
       "checkAutomatically": "ON_ERROR_RECOVERY",
       "fallbackToCacheTimeout": 0
-    },
-    "extra": {
-      "eas": {
-        "projectId": "3f9f62fa-e17f-4fa0-8c13-1f8e00021494"
-      }
     }
   }
 }
