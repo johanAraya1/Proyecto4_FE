@@ -6,10 +6,9 @@ import { Platform } from 'react-native';
 
 // Constantes de URLs por plataforma
 export const BASE_URL_WEB = 'http://localhost:3000';
-export const BASE_URL_ANDROID =
-  'https://fruitily-preexceptional-lacresha.ngrok-free.dev';
-export const BASE_URL_IOS =
-  'https://fruitily-preexceptional-lacresha.ngrok-free.dev';
+// 10.0.2.2 es la IP especial que usa el emulador de Android para acceder a localhost de tu PC
+export const BASE_URL_ANDROID = 'http://10.0.2.2:3000';
+export const BASE_URL_IOS = 'http://localhost:3000';
 export const BASE_URL_PHYSICAL_DEVICE = 'http://192.168.100.55:3000';
 
 /**
