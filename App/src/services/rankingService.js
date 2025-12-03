@@ -19,25 +19,23 @@ export const rankingService = {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`No se pudo cargar el ranking: ${response.status}`);
       }
 
       const data = await response.json();
-      return data;
+      
+      // Verificar que la respuesta tenga datos válidos
+      if (data && data.ranking && Array.isArray(data.ranking)) {
+        return data.ranking;
+      } else if (Array.isArray(data)) {
+        return data;
+      }
+      
+      throw new Error('Formato de respuesta inválido');
     } catch (error) {
-      // Retornar datos de ejemplo en caso de error
-      return [
-        { rank: 1, name: 'Magnus', elo: 2830 },
-        { rank: 2, name: 'Fabiano', elo: 2795 },
-        { rank: 3, name: 'Hikaru', elo: 2788 },
-        { rank: 4, name: 'You', elo: 2500 },
-        { rank: 5, name: 'Gukesh', elo: 2764 },
-        { rank: 6, name: 'Nodirbek', elo: 2756 },
-        { rank: 7, name: 'Yi', elo: 2755 },
-        { rank: 8, name: 'Caruana', elo: 2750 },
-        { rank: 9, name: 'Nepomniachtchi', elo: 2745 },
-        { rank: 10, name: 'Arjun', elo: 2740 },
-      ];
+      // eslint-disable-next-line no-console
+      console.error('❌ Error al obtener ranking:', error);
+      throw error;
     }
   },
 

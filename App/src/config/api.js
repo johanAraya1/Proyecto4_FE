@@ -65,14 +65,14 @@ export const ENDPOINTS = {
 
   // Ranking
   RANKING: {
-    BASE: '/ranking',
-    PLAYER: '/ranking/{playerId}',
+    BASE: '/api/ranking',
+    PLAYER: '/api/ranking/{playerId}',
   },
 
   // Feature Flags
   FEATURE_FLAGS: {
-    BASE: '/feature-flags',
-    TOGGLE: '/feature-flags/{id}/toggle',
+    BASE: '/api/feature-flags',
+    TOGGLE: '/api/feature-flags/{id}/toggle',
   },
 };
 

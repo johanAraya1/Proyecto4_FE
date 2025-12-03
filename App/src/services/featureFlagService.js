@@ -37,7 +37,7 @@ class FeatureFlagService {
    * @returns {Promise<Object>} - Respuesta con array de feature flags
    */
   async getAllFeatureFlags() {
-    const response = await this.apiClient.get('/feature-flags');
+    const response = await this.apiClient.get('/api/feature-flags');
 
     if (response.data && response.data.featureFlags) {
       const featureFlags = response.data.featureFlags.map((flagData) => {
@@ -61,7 +61,7 @@ class FeatureFlagService {
    */
   async getFeatureFlagById(id) {
     try {
-      const response = await this.apiClient.get(`/feature-flags/${id}`);
+      const response = await this.apiClient.get(`/api/feature-flags/${id}`);
 
       if (response.data) {
         const extractedData = _extractFeatureFlagData(response.data);
@@ -91,7 +91,7 @@ class FeatureFlagService {
    */
   async getFeatureFlagByName(name) {
     try {
-      const response = await this.apiClient.get(`/feature-flags/name/${name}`);
+      const response = await this.apiClient.get(`/api/feature-flags/name/${name}`);
 
       if (response.data) {
         const extractedData = _extractFeatureFlagData(response.data);
@@ -126,7 +126,7 @@ class FeatureFlagService {
       }
 
       const response = await this.apiClient.post(
-        '/feature-flags',
+        '/api/feature-flags',
         featureFlagData
       );
 
@@ -169,7 +169,7 @@ class FeatureFlagService {
       }
 
       const response = await this.apiClient.put(
-        `/feature-flags/${id}`,
+        `/api/feature-flags/${id}`,
         updateData
       );
 
@@ -207,7 +207,7 @@ class FeatureFlagService {
       }
 
       const response = await this.apiClient.patch(
-        `/feature-flags/${id}/toggle`
+        `/api/feature-flags/${id}/toggle`
       );
 
       if (response.data) {
@@ -248,7 +248,7 @@ class FeatureFlagService {
         throw new Error('ID del feature flag requerido');
       }
 
-      const response = await this.apiClient.delete(`/feature-flags/${id}`);
+      const response = await this.apiClient.delete(`/api/feature-flags/${id}`);
 
       if (response.status === 204 || response.status === 200) {
         return {
