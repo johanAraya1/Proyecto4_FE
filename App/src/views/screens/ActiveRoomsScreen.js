@@ -441,16 +441,32 @@ const ActiveRoomsScreen = ({ navigation }) => {
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyIcon}>🎮</Text>
-      <Text style={styles.emptyTitle}>No tienes salas activas</Text>
-      <Text style={styles.emptyMessage}>
-        Crea una nueva sala desde el dashboard para comenzar a jugar
+      <Text style={styles.emptyTitle}>
+        {selectedTab === 'Invitaciones' 
+          ? 'No tienes invitaciones pendientes' 
+          : selectedTab === 'Todas'
+          ? 'No tienes salas activas'
+          : `No tienes salas ${selectedTab.toLowerCase()}`}
       </Text>
-      <TouchableOpacity
-        style={styles.createRoomButton}
-        onPress={goBackToDashboard}
-      >
-        <Text style={styles.createRoomButtonText}>🏠 Ir al Dashboard</Text>
-      </TouchableOpacity>
+      <Text style={styles.emptyMessage}>
+        {selectedTab === 'Invitaciones'
+          ? 'Cuando alguien te invite a una sala, aparecerá aquí'
+          : 'Crea una nueva sala desde el dashboard o únete con un código'}
+      </Text>
+      <View style={styles.emptyButtonsContainer}>
+        <TouchableOpacity
+          style={styles.createRoomButton}
+          onPress={goBackToDashboard}
+        >
+          <Text style={styles.createRoomButtonText}>🏠 Dashboard</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.createRoomButton, { backgroundColor: '#FFD166', marginLeft: 12 }]}
+          onPress={() => navigation.navigate('JoinRoom')}
+        >
+          <Text style={[styles.createRoomButtonText, { color: '#6F4E37' }]}>🔍 Buscar Sala</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -566,6 +582,19 @@ const ActiveRoomsScreen = ({ navigation }) => {
             </Text>
           </TouchableOpacity>
         ))}
+      </View>
+
+      {/* Botón de refrescar salas */}
+      <View style={styles.refreshButtonContainer}>
+        <TouchableOpacity
+          style={styles.refreshButton}
+          onPress={onRefresh}
+          disabled={refreshing}
+        >
+          <Text style={styles.refreshButtonText}>
+            {refreshing ? '⏳ Actualizando...' : '🔄 Refrescar Salas'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Campo de búsqueda mejorado */}

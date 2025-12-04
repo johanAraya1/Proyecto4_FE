@@ -231,6 +231,13 @@ const RoomCreatedScreen = ({ navigation, route }) => {
   };
 
   /**
+   * Navega a la vista de salas activas
+   */
+  const goToActiveRooms = () => {
+    navigation.navigate('ActiveRooms');
+  };
+
+  /**
    * Navega de vuelta al dashboard
    */
   const goBackToDashboard = () => {
@@ -326,7 +333,7 @@ const RoomCreatedScreen = ({ navigation, route }) => {
 
           <TouchableOpacity
             style={styles.backButton}
-            onPress={goBackToDashboard}
+            onPress={goToActiveRooms}
           >
             <Text style={styles.backButtonText}>✅ Continuar</Text>
           </TouchableOpacity>

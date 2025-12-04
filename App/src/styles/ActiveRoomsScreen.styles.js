@@ -307,6 +307,12 @@ export const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 24,
   },
+
+  emptyButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   
   createRoomButton: {
     backgroundColor: COLORS.PRINCIPAL,
@@ -336,9 +342,10 @@ export const styles = StyleSheet.create({
   // Tabs mejorados
   tabsContainerImproved: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'flex-start',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     backgroundColor: COLORS.NEUTRO,
     borderRadius: 10,
@@ -352,10 +359,11 @@ export const styles = StyleSheet.create({
   },
 
   tabButtonImproved: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     borderRadius: 8,
-    marginRight: 8,
+    marginRight: 4,
+    marginBottom: 6,
     backgroundColor: 'transparent',
   },
 
@@ -371,7 +379,7 @@ export const styles = StyleSheet.create({
   },
 
   tabTextImproved: {
-    fontSize: 13,
+    fontSize: 11,
     color: COLORS.TEXTO_CLARO,
     fontWeight: '600',
   },
@@ -417,6 +425,38 @@ export const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
     textAlign: 'center',
+  },
+
+  // Botón de refrescar
+  refreshButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+
+  refreshButton: {
+    backgroundColor: COLORS.PRINCIPAL,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 5,
+    minWidth: 200,
+  },
+
+  refreshButtonText: {
+    color: COLORS.BLANCO,
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
 

@@ -194,12 +194,14 @@ const JoinRoomScreen = ({ navigation, route }) => {
       const updatedRoom = await joinRoomById(room.id, user.id);
 
       if (updatedRoom) {
-        const creatorName = updatedRoom.creatorName || 'Usuario desconocido';
+        // Usar el nombre del creador de la sala encontrada (foundRoom) en lugar del updatedRoom
+        const creatorName = foundRoom?.creatorName || room?.creatorName || 'Usuario desconocido';
         showSuccessModal(
           '¡Éxito!',
           `Te has unido exitosamente a la sala de ${creatorName}`,
           () => {
-            goBackToDashboard();
+            // Navegar a ActiveRooms
+            navigation.replace('ActiveRooms');
           }
         );
       } else {
@@ -207,7 +209,7 @@ const JoinRoomScreen = ({ navigation, route }) => {
           'Error al Unirse',
           'No se pudo unir a la sala. Inténtalo nuevamente.',
           () => {
-            goBackToDashboard();
+            navigation.replace('ActiveRooms');
           }
         );
       }
@@ -216,7 +218,7 @@ const JoinRoomScreen = ({ navigation, route }) => {
         'Error',
         err.message || 'Error desconocido al unirse a la sala',
         () => {
-          goBackToDashboard();
+          navigation.replace('ActiveRooms');
         }
       );
     } finally {
@@ -426,7 +428,15 @@ const JoinRoomScreen = ({ navigation, route }) => {
         title={modalData.title}
         message={modalData.message}
         type={modalData.type}
-        onClose={hideModal}
+        onClose={() => {
+          hideModal();
+          // Ejecutar callback después de cerrar si existe
+          if (modalData.onConfirm) {
+            setTimeout(() => {
+              modalData.onConfirm();
+            }, 100);
+          }
+        }}
         confirmText={modalData.confirmText}
       />
     </SafeAreaView>
