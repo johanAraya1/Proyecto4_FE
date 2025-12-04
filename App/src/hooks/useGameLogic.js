@@ -855,15 +855,28 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
     const newPlayerId = newTurn === 1 ? roomData?.creatorId : roomData?.opponentId;
     
     const currentPlayerKey = currentPlayerNum === 1 ? 'player1' : 'player2';
+    const currentPlayer = gameState[currentPlayerKey];
     
-    // ⭐ ACTUALIZACIÓN LOCAL: Solo cambiar turno e incrementar turnsCompleted
-    // El backend agregará las órdenes y las recibirán por WebSocket
+    // ⭐ REGLA: Si hay órdenes sin completar, se descartan al finalizar el turno
+    const uncompletedOrders = currentPlayer.orders || [];
+    const hasUncompletedOrders = uncompletedOrders.length > 0;
+    
+    // ⭐ PENALIZACIÓN: Calcular puntos perdidos por órdenes sin completar
+    let penaltyPoints = 0;
+    if (hasUncompletedOrders) {
+      penaltyPoints = uncompletedOrders.reduce((sum, order) => sum + (order.points || 0), 0);
+      console.log(`⚠️ ${uncompletedOrders.length} orden(es) sin completar - Penalización: -${penaltyPoints} puntos`);
+    }
+    
+    // ⭐ ACTUALIZACIÓN LOCAL: Cambiar turno, incrementar turnsCompleted, limpiar órdenes y restar puntos
     setGameState((prev) => ({
       ...prev,
       currentTurn: newTurn,
       [currentPlayerKey]: {
         ...prev[currentPlayerKey],
-        turnsCompleted: prev[currentPlayerKey].turnsCompleted + 1
+        turnsCompleted: prev[currentPlayerKey].turnsCompleted + 1,
+        orders: [], // ⭐ Limpiar todas las órdenes sin completar
+        score: Math.max(0, prev[currentPlayerKey].score - penaltyPoints) // ⭐ Restar puntos (mínimo 0)
       }
     }));
     
@@ -905,7 +918,24 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
   const handleMainButtonPress = () => {
     if (isExchangeMode) {
       if (selectedOrderCards.length === 0) {
-        showModal('Selecciona órdenes', 'Debes marcar al menos una orden en tu tarjeta para canjear tus ingredientes por puntos.', 'info', () => {}, 'OK', () => { handleFinalizeTurn(); }, 'Finalizar turno');
+        const currentPlayerKey = gameState.currentTurn === 1 ? 'player1' : 'player2';
+        const currentPlayer = gameState[currentPlayerKey];
+        const hasOrders = currentPlayer.orders && currentPlayer.orders.length > 0;
+        
+        if (hasOrders) {
+          const totalPenalty = currentPlayer.orders.reduce((sum, order) => sum + (order.points || 0), 0);
+          showModal(
+            '⚠️ Órdenes sin completar', 
+            `No has seleccionado ninguna orden para canjear. Si finalizas el turno ahora:\n\n❌ Perderás ${currentPlayer.orders.length} orden(es)\n💔 Penalización: -${totalPenalty} puntos\n\n¿Deseas continuar?`, 
+            'warning', 
+            () => {}, 
+            'Cancelar', 
+            () => { handleFinalizeTurn(); }, 
+            'Sí, finalizar'
+          );
+        } else {
+          showModal('Selecciona órdenes', 'Debes marcar al menos una orden en tu tarjeta para canjear tus ingredientes por puntos.', 'info', () => {}, 'OK', () => { handleFinalizeTurn(); }, 'Finalizar turno');
+        }
         return;
       }
       
@@ -999,7 +1029,31 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
         'Finalizar turno'
       );
     } else {
-      showModal('¿Deseas canjear tus ingredientes?', 'Puedes canjear tus ingredientes por puntos o finalizar tu turno directamente.', 'info', () => { setIsExchangeMode(true); }, 'OK', () => { handleFinalizeTurn(); }, 'Finalizar turno');
+      // No está en modo canje - verificar si tiene órdenes pendientes
+      const currentPlayerKey = gameState.currentTurn === 1 ? 'player1' : 'player2';
+      const currentPlayer = gameState[currentPlayerKey];
+      const hasOrders = currentPlayer.orders && currentPlayer.orders.length > 0;
+      
+      if (hasOrders) {
+        const totalPenalty = currentPlayer.orders.reduce((sum, order) => sum + (order.points || 0), 0);
+        showModal(
+          '¿Deseas canjear tus ingredientes?', 
+          `Tienes ${currentPlayer.orders.length} orden(es) pendiente(s). Puedes canjear tus ingredientes por puntos o finalizar tu turno directamente.\n\n⚠️ Si finalizas sin canjear:\n❌ Perderás las órdenes pendientes\n💔 Penalización: -${totalPenalty} puntos`, 
+          'info', 
+          () => { setIsExchangeMode(true); }, 
+          'Canjear ingredientes', 
+          () => { handleFinalizeTurn(); }, 
+          'Finalizar sin canjear'
+        );
+      } else {
+        showModal(
+          '¿Finalizar turno?', 
+          'No tienes órdenes pendientes. ¿Deseas finalizar tu turno?', 
+          'info', 
+          () => { handleFinalizeTurn(); }, 
+          'Finalizar turno'
+        );
+      }
     }
   };
 
