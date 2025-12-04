@@ -1,6 +1,3 @@
-const MemoizedPlayerCard = React.memo(PlayerCard);
-const MemoizedGameGrid = React.memo(GameGrid);
-
 import React, { useMemo, useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -21,6 +18,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useGameLogic } from '../../hooks/useGameLogic';
 import { useAuth } from '../../controllers/AuthContext';
 import GameScreenStyles from '../../styles/GameScreenStyles';
+import { gameWebSocketService } from '../../services/gameWebSocketService';
+
+const MemoizedPlayerCard = React.memo(PlayerCard);
+const MemoizedGameGrid = React.memo(GameGrid);
 
 /**
  * Pantalla principal del juego - Interfaz de partida en tiempo real
@@ -87,24 +88,79 @@ const GameScreen = ({ navigation, route }) => {
   const myTurn = isPlayer1 ? 1 : isPlayer2 ? 2 : null;
   const isMyTurn = gameState.currentTurn === myTurn;
 
+  // Estado para el modal de confirmación de salida
+  const [showExitModal, setShowExitModal] = useState(false);
+
   // Maneja la salida del juego
 
   /**
-   * Maneja la salida del juego y regresa a la pantalla anterior.
-   * El estado se guarda automáticamente vía WebSocket.
+   * Muestra el modal de confirmación antes de salir del juego.
    * @returns {void}
    */
   const handleExitGame = () => {
-    // El estado ya está guardado vía WebSocket, solo navegamos de vuelta
-    navigation.goBack();
+    setShowExitModal(true);
+  };
+
+  /**
+   * Confirma la salida del juego y notifica al backend que el jugador se rindió.
+   * @returns {void}
+   */
+  const confirmExitGame = () => {
+    console.log('🚪 Jugador abandonando la partida...');
+    console.log('👤 User ID:', user?.id);
+    console.log('🔌 WebSocket conectado:', gameWebSocketService.isConnected());
+    
+    // 1. Desactivar reconexión ANTES de enviar el evento
+    gameWebSocketService.shouldReconnect = false;
+    
+    // 2. Enviar evento de rendición al backend
+    if (gameWebSocketService.isConnected() && user?.id) {
+      console.log('📤 Enviando evento PLAYER_SURRENDER...');
+      gameWebSocketService.sendPlayerSurrender(user.id);
+      console.log('✅ Evento PLAYER_SURRENDER enviado');
+    } else {
+      console.warn('⚠️ No se pudo enviar PLAYER_SURRENDER - WebSocket no conectado o sin user ID');
+    }
+    
+    setShowExitModal(false);
+    
+    // 3. Esperar un momento para que el servidor procese y cerrar permanentemente
+    setTimeout(() => {
+      console.log('🔌 Desconectando permanentemente...');
+      gameWebSocketService.disconnectPermanently();
+      
+      console.log('🔄 Navegando al Dashboard...');
+      navigation.navigate('Dashboard');
+    }, 800);
+  };
+
+  /**
+   * Cancela la salida del juego.
+   * @returns {void}
+   */
+  const cancelExitGame = () => {
+    setShowExitModal(false);
   };
 
   // Cleanup al desmontar el componente
   useEffect(() => {
+    // Ref para rastrear si se usó el botón oficial de salida
+    let didUseExitButton = false;
+    
+    // Cuando se confirma la salida, marcar que se usó el botón oficial
+    const originalConfirmExitGame = confirmExitGame;
+    
     return () => {
+      // Si el componente se desmonta sin usar el botón de salir oficial,
+      // enviar el evento de rendición de todos modos
+      if (!didUseExitButton && gameWebSocketService.isConnected() && user?.id) {
+        console.log('⚠️ Componente desmontado sin usar botón oficial - Enviando PLAYER_SURRENDER');
+        gameWebSocketService.sendPlayerSurrender(user.id);
+      }
+      
       // El WebSocket se desconectará automáticamente en useGameLogic
     };
-  }, []);
+  }, [user?.id]);
 
   // Onboarding for the game screen (explain how to play) - show once per device/user
   const [showGameOnboarding, setShowGameOnboarding] = useState(false);
@@ -460,6 +516,19 @@ const GameScreen = ({ navigation, route }) => {
         confirmText={modalData.confirmText}
         showCancel={modalData.showCancel}
         cancelText={modalData.cancelText}
+      />
+
+      {/* Modal de confirmación de salida */}
+      <CustomModal
+        visible={showExitModal}
+        title="⚠️ ¿Abandonar partida?"
+        message="Si sales ahora, se dará por terminada la partida y perderás automáticamente. ¿Estás seguro de que quieres abandonar?"
+        type="warning"
+        onClose={cancelExitGame}
+        onConfirm={confirmExitGame}
+        confirmText="Sí, abandonar"
+        cancelText="No, continuar jugando"
+        showCancel={true}
       />
       {/* Indicador de espera cuando no es tu turno */}
       {(!isMyTurn && !loading && !error && ingredientGrid && (myTurn !== null)) && (

@@ -9,6 +9,7 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [ingredientGrid, setIngredientGrid] = useState(null);
+  const [isGameInitialized, setIsGameInitialized] = useState(false);  // ⭐ Nuevo flag
   
   const [gameState, setGameState] = useState({
     currentTurn: 1,
@@ -52,8 +53,8 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
     gameWebSocketService.connect(roomCode, roomData.id, userId);
     
     // Handler para conexión exitosa
-    const handleConnected = () => {
-      // Conectado exitosamente
+    const handleConnected = async () => {
+      console.log('✅ WebSocket conectado a sala:', roomCode);
     };
     
     // Handler para actualización del estado del juego
@@ -262,6 +263,11 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
     const handleGameEnded = (payload) => {
       if (!payload) return;
       
+      console.log('🏁 Evento GAME_ENDED recibido - Partida terminada');
+      
+      // Desactivar reconexión automática
+      gameWebSocketService.shouldReconnect = false;
+      
       const isWinner = payload.winnerId === userId;
       const eloChange = isWinner ? payload.eloChanges.winner : payload.eloChanges.loser;
       const eloSign = eloChange > 0 ? '+' : '';
@@ -273,6 +279,11 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
           'success',
           () => {
             hideModal();
+            
+            // Desconectar permanentemente
+            console.log('🔌 Desconectando permanentemente después de victoria...');
+            gameWebSocketService.disconnectPermanently();
+            
             if (navigation) {
               navigation.navigate('Dashboard');
             }
@@ -286,6 +297,11 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
           'error',
           () => {
             hideModal();
+            
+            // Desconectar permanentemente
+            console.log('🔌 Desconectando permanentemente después de derrota...');
+            gameWebSocketService.disconnectPermanently();
+            
             if (navigation) {
               navigation.navigate('Dashboard');
             }
@@ -297,6 +313,78 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
     
     gameWebSocketService.on('gameEnded', handleGameEnded);
     
+    // Handler para cuando un jugador se rinde
+    const handlePlayerSurrendered = (payload) => {
+      if (!payload) return;
+      
+      console.log('🏳️ Evento PLAYER_SURRENDERED recibido:', payload);
+      
+      const didISurrender = payload.playerId === userId;
+      
+      if (didISurrender) {
+        // Yo me rendí, simplemente salgo (el modal ya se mostró)
+        console.log('✅ Confirmación de mi rendición recibida del servidor');
+        return;
+      }
+      
+      // El oponente se rindió - desactivar reconexión
+      console.log('🏆 El oponente se rindió - desactivando reconexión');
+      gameWebSocketService.shouldReconnect = false;
+      
+      // Mostrar notificación de victoria
+      showModal(
+        '🎉 ¡Victoria por Abandono!',
+        `Tu oponente ha abandonado la partida.\n\n¡Has ganado por rendición!\n\nELO: +${payload.eloChanges?.winner || 25}`,
+        'success',
+        () => {
+          hideModal();
+          
+          // Desconectar permanentemente antes de navegar
+          console.log('🔌 Desconectando permanentemente después de victoria...');
+          gameWebSocketService.disconnectPermanently();
+          
+          if (navigation) {
+            navigation.navigate('Dashboard');
+          }
+        },
+        'Volver al menú'
+      );
+    };
+    
+    gameWebSocketService.on('playerSurrendered', handlePlayerSurrendered);
+    
+    // Handler para errores del servidor
+    const handleError = (payload) => {
+      console.log('❌ Error del WebSocket:', payload);
+      
+      // Si el error indica que la sala está terminada, redirigir al Dashboard
+      if (payload && payload.message && 
+          (payload.message.includes('terminada') || 
+           payload.message.includes('finished') || 
+           payload.message.includes('completed'))) {
+        console.log('🚫 Sala terminada - Redirigiendo al Dashboard');
+        
+        // Desactivar reconexión
+        gameWebSocketService.shouldReconnect = false;
+        
+        showModal(
+          '⚠️ Sala Terminada',
+          'Esta sala ya ha finalizado. Serás redirigido al Dashboard.',
+          'warning',
+          () => {
+            hideModal();
+            gameWebSocketService.disconnectPermanently();
+            if (navigation) {
+              navigation.navigate('Dashboard');
+            }
+          },
+          'Entendido'
+        );
+      }
+    };
+    
+    gameWebSocketService.on('error', handleError);
+    
     // Cleanup function
     return () => {
       // Remover todos los event listeners
@@ -306,11 +394,53 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
       gameWebSocketService.off('trade', handleTrade);
       gameWebSocketService.off('turnChanged', handleTurnChanged);
       gameWebSocketService.off('gameEnded', handleGameEnded);
+      gameWebSocketService.off('playerSurrendered', handlePlayerSurrendered);
+      gameWebSocketService.off('error', handleError);
       
       // Desconectar WebSocket
       gameWebSocketService.disconnect();
     };
   }, [roomCode, roomData?.id, userId]);
+  
+  // ============ ENVIAR GRID_INITIALIZED CUANDO EL JUEGO ESTÉ LISTO ============
+  useEffect(() => {
+    // Solo enviar si:
+    // 1. El WebSocket está conectado
+    // 2. Tenemos un grid generado
+    // 3. Aún no hemos inicializado el juego
+    // 4. No estamos cargando
+    if (
+      gameWebSocketService.isConnected() && 
+      ingredientGrid && 
+      !isGameInitialized && 
+      !loading
+    ) {
+      console.log('🎲 Enviando GRID_INITIALIZED al backend...');
+      
+      // Convertir grid a string
+      const gridToString = (grid) => {
+        if (!grid || grid.length === 0) return '';
+        return grid.map(row => row.map(cell => cell.ingredient).join('|')).join('\n');
+      };
+      
+      const initEvent = {
+        type: 'GRID_INITIALIZED',
+        payload: {
+          grid: ingredientGrid,
+          gridString: gridToString(ingredientGrid),
+          playerPositions: playerPositions,
+          player1Orders: gameState.player1.orders,  // Array de 1 orden inicial
+          player2Orders: gameState.player2.orders   // Array vacío o con órdenes
+        }
+      };
+      
+      console.log('📤 Enviando GRID_INITIALIZED:', initEvent);
+      gameWebSocketService.send(initEvent);
+      
+      // Marcar como inicializado para no enviar múltiples veces
+      setIsGameInitialized(true);
+    }
+  }, [ingredientGrid, isGameInitialized, loading, gameState.player1.orders, gameState.player2.orders, playerPositions]);
   
   useEffect(() => {
     loadGameData();
@@ -338,11 +468,14 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
       if (loadedState) {
 
         
-        // Restaurar cuadr�cula guardada (ingredientGrid viene directamente)
+        // Restaurar cuadrícula guardada (ingredientGrid viene directamente)
         if (loadedState.ingredientGrid) {
           setIngredientGrid(loadedState.ingredientGrid);
 
         }
+        
+        // ⭐ Marcar como inicializado para no enviar GRID_INITIALIZED
+        setIsGameInitialized(true);
         
         // Restaurar posiciones de jugadores
         if (loadedState.playerPositions) {
@@ -443,21 +576,8 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
         // Establecer las posiciones iniciales
         setPlayerPositions(initialPositions);
         
-        // Enviar cuadr�cula inicial Y posiciones por WebSocket
-        if (gameWebSocketService.isConnected()) {
-
-
-
-
-          
-          // ? Incluir las órdenes de ambos jugadores en GRID_INITIALIZED
-          gameWebSocketService.sendGridInitialization(
-            newGrid, 
-            initialPositions,
-            gameState.player1.orders,  // Array de órdenes del jugador 1
-            gameState.player2.orders   // Array de órdenes del jugador 2
-          );
-        }
+        // ⭐ NOTA: GRID_INITIALIZED ahora se envía en el handler 'connected' del WebSocket
+        // No es necesario enviarlo aquí porque puede causar duplicados
         
         const player1Name = roomData?.creatorName || 'Jugador 1';
         const player2Name = roomData?.opponentName || 'Jugador 2';

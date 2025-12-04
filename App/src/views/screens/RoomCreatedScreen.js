@@ -327,9 +327,9 @@ const RoomCreatedScreen = ({ navigation, route }) => {
             <Text style={styles.inviteButtonText}>👥 Invitar a Amigo</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.shareButton} onPress={shareRoomCode}>
+          {/* <TouchableOpacity style={styles.shareButton} onPress={shareRoomCode}>
             <Text style={styles.shareButtonText}>📤 Compartir Código</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity
             style={styles.backButton}

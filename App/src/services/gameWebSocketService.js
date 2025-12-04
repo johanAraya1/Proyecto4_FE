@@ -14,6 +14,7 @@ class GameWebSocketService {
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 2000;
+    this.shouldReconnect = true; // 👈 Bandera para controlar reconexión automática
   }
 
   /**
@@ -23,9 +24,20 @@ class GameWebSocketService {
    * @param {number} userId - ID del usuario
    */
   connect(roomCode, roomId, userId) {
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+    // Si ya hay un socket conectado a la misma sala, no crear uno nuevo
+    if (this.socket && this.socket.readyState === WebSocket.OPEN && this.roomCode === roomCode) {
+      console.log('⚠️ Ya hay una conexión activa a la sala:', roomCode);
       return;
     }
+
+    // Si hay un socket conectado a otra sala, desconectar primero
+    if (this.socket && this.socket.readyState === WebSocket.OPEN && this.roomCode !== roomCode) {
+      console.log('🔄 Desconectando de sala anterior:', this.roomCode);
+      this.disconnectPermanently();
+    }
+
+    // Resetear la bandera de reconexión para permitirlo en nuevas partidas
+    this.shouldReconnect = true;
 
     this.roomCode = roomCode;
     this.roomId = roomId;
@@ -54,6 +66,7 @@ class GameWebSocketService {
       this.socket = new WebSocket(socketUrl);
 
       this.socket.onopen = () => {
+        console.log('✅ WebSocket conectado a sala:', roomCode);
         this.reconnectAttempts = 0;
         this.emit('connected', { roomCode, roomId, userId });
       };
@@ -71,9 +84,27 @@ class GameWebSocketService {
         this.emit('error', error);
       };
 
-      this.socket.onclose = () => {
-        this.emit('disconnected', { roomCode });
-        this.attemptReconnect(roomCode, roomId, userId);
+      this.socket.onclose = (event) => {
+        console.log('🔌 WebSocket cerrado:', event.code, event.reason);
+        
+        // Si el código es 1008 (Policy Violation) o la razón indica sala terminada, no reconectar
+        if (event.code === 1008 || 
+            (event.reason && (event.reason.includes('terminada') || 
+                              event.reason.includes('finished') || 
+                              event.reason.includes('completed')))) {
+          console.log('🚫 Sala terminada según servidor - Desactivando reconexión');
+          this.shouldReconnect = false;
+        }
+        
+        this.emit('disconnected', { roomCode, code: event.code, reason: event.reason });
+        
+        // Solo reconectar si shouldReconnect es true
+        if (this.shouldReconnect) {
+          console.log('🔄 Intentando reconectar...');
+          this.attemptReconnect(roomCode, roomId, userId);
+        } else {
+          console.log('❌ No se reconectará - partida terminada o desconectado manualmente');
+        }
       };
     } catch (error) {
       console.error('💥 Error creando WebSocket:', error);
@@ -87,9 +118,12 @@ class GameWebSocketService {
   attemptReconnect(roomCode, roomId, userId) {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
+      console.log(`🔄 Intento de reconexión ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
       setTimeout(() => {
         this.connect(roomCode, roomId, userId);
       }, this.reconnectDelay * this.reconnectAttempts);
+    } else {
+      console.log('❌ Máximo de intentos de reconexión alcanzado');
     }
   }
 
@@ -126,6 +160,21 @@ class GameWebSocketService {
         break;
       case 'GAME_ENDED':
         this.emit('gameEnded', payload);
+        break;
+      case 'PLAYER_SURRENDERED':
+        this.emit('playerSurrendered', payload);
+        break;
+      case 'ERROR':
+        console.log('❌ Error recibido del servidor:', payload);
+        // Si el error es por sala terminada, desactivar reconexión
+        if (payload && payload.message && 
+            (payload.message.includes('terminada') || 
+             payload.message.includes('finished') || 
+             payload.message.includes('completed'))) {
+          console.log('🚫 Sala terminada - Desactivando reconexión');
+          this.shouldReconnect = false;
+        }
+        this.emit('error', payload);
         break;
       default:
         this.emit('message', data);
@@ -337,6 +386,22 @@ class GameWebSocketService {
   }
 
   /**
+   * Envía evento de rendición/abandono de partida
+   * @param {number} playerId - ID del jugador que se rinde
+   */
+  sendPlayerSurrender(playerId) {
+    const event = {
+      type: 'PLAYER_SURRENDER',
+      payload: {
+        playerId: playerId
+      }
+    };
+    
+    console.log('📤 Enviando PLAYER_SURRENDER:', event);
+    this.send(event);
+  }
+
+  /**
    * Convierte la cuadrícula a string para almacenar
    * @param {Array} grid - Cuadrícula de ingredientes
    * @returns {string} - String de la cuadrícula (ej: "azucar|cafe|leche\ncaramelo|leche|cafe")
@@ -364,7 +429,14 @@ class GameWebSocketService {
   send(data) {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       const message = JSON.stringify(data);
+      console.log('📡 Enviando mensaje WebSocket:', data.type);
       this.socket.send(message);
+      console.log('✅ Mensaje enviado correctamente');
+    } else {
+      console.error('❌ No se pudo enviar mensaje - WebSocket no conectado');
+      console.error('   - Socket existe:', !!this.socket);
+      console.error('   - ReadyState:', this.socket?.readyState);
+      console.error('   - Tipo de mensaje:', data.type);
     }
   }
 
@@ -416,6 +488,26 @@ class GameWebSocketService {
     }
     this.listeners.clear();
     this.roomCode = null;
+    this.reconnectAttempts = 0;
+  }
+
+  /**
+   * Desconecta permanentemente el WebSocket y desactiva la reconexión automática
+   * Usar cuando la partida termina (victoria, derrota, rendición)
+   */
+  disconnectPermanently() {
+    console.log('🔌 Desconectando permanentemente del WebSocket');
+    this.shouldReconnect = false;
+    
+    if (this.socket) {
+      this.socket.close(1000, 'Partida terminada');
+      this.socket = null;
+    }
+    
+    this.listeners.clear();
+    this.roomCode = null;
+    this.roomId = null;
+    this.userId = null;
     this.reconnectAttempts = 0;
   }
 
