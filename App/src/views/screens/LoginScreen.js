@@ -179,13 +179,6 @@ const LoginScreen = ({ navigation }) => {
             error={fieldErrors.password}
           />
 
-          {/* Enlace de contraseña olvidada */}
-          <TouchableOpacity style={styles.forgotPasswordContainer}>
-            <Text style={styles.forgotPasswordText}>
-              ¿Olvidaste tu contraseña?
-            </Text>
-          </TouchableOpacity>
-
           {/* Mensaje de error global */}
           {error && (
             <View style={styles.errorContainer}>
@@ -200,17 +193,6 @@ const LoginScreen = ({ navigation }) => {
             loading={isLoading}
             style={styles.loginButton}
           />
-
-          {/* Separador "O ingresa con" */}
-          <Text style={styles.separatorText}>O ingresa con</Text>
-
-          {/* Botón de Google */}
-          <TouchableOpacity style={styles.googleButton}>
-            <View style={styles.googleIconContainer}>
-              <GoogleLogo size={18} />
-            </View>
-            <Text style={styles.googleButtonText}>Continuar con Google</Text>
-          </TouchableOpacity>
 
           {/* Enlace de registro */}
           <View style={styles.registerContainer}>
