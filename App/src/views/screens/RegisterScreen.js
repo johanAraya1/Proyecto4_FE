@@ -14,7 +14,8 @@ import {
   Dimensions
 } from 'react-native';
 import { useAuth } from '../../controllers/AuthContext';
-import GoogleLogo from '../../components/GoogleLogo';
+import { CustomModal } from '../../components/common';
+import { useCustomModal } from '../../hooks/useCustomModal';
 
 /**
  * Pantalla de Registro - Parte "Vista" de la arquitectura MVC
@@ -30,6 +31,9 @@ const RegisterScreen = ({ navigation }) => {
 
   // Usar el controlador de autenticación
   const { register, isLoading, error, clearError } = useAuth();
+  
+  // Hook para modales personalizados
+  const { modalVisible, modalData, showSuccessModal, showErrorModal, hideModal } = useCustomModal();
 
   /**
    * Maneja el proceso de registro cuando se presiona el botón
@@ -51,24 +55,28 @@ const RegisterScreen = ({ navigation }) => {
       const success = await register(email.trim(), password, username.trim());
       
       if (success) {
-        // Mostrar mensaje de éxito
-        Alert.alert(
+        // Mostrar mensaje de éxito con modal personalizado
+        showSuccessModal(
           'Registro exitoso',
-          'Tu cuenta ha sido creada. Por favor inicia sesión.',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.navigate('Login')
-            }
-          ]
+          'Tu cuenta ha sido creada. Por favor inicia sesión.'
         );
       } else {
         // El error se maneja automáticamente por el controlador
-        Alert.alert('Error', error || 'No se pudo completar el registro');
+        showErrorModal('Error', error || 'No se pudo completar el registro');
       }
     } catch (err) {
-      Alert.alert('Error', 'Ocurrió un error inesperado');
+      showErrorModal('Error', 'Ocurrió un error inesperado');
     }
+  };
+
+  /**
+   * Maneja el cierre del modal y redirige al login si fue exitoso
+   */
+  const handleModalClose = () => {
+    if (modalData.type === 'success') {
+      navigation.navigate('Login');
+    }
+    hideModal();
   };
 
   /**
@@ -257,17 +265,6 @@ const RegisterScreen = ({ navigation }) => {
             )}
           </TouchableOpacity>
 
-          {/* Separador "O regístrate con" */}
-          <Text style={styles.separatorText}>O regístrate con</Text>
-
-          {/* Botón de Google */}
-          <TouchableOpacity style={styles.googleButton}>
-            <View style={styles.googleIconContainer}>
-              <GoogleLogo size={18} />
-            </View>
-            <Text style={styles.googleButtonText}>Continuar con Google</Text>
-          </TouchableOpacity>
-
           {/* Enlace de login */}
           <View style={styles.loginContainer}>
             <Text style={styles.loginText}>¿Ya tienes cuenta? </Text>
@@ -277,6 +274,16 @@ const RegisterScreen = ({ navigation }) => {
           </View>
         </View>
       </ScrollView>
+
+      {/* Modal personalizado */}
+      <CustomModal
+        visible={modalVisible}
+        title={modalData.title}
+        message={modalData.message}
+        type={modalData.type}
+        onClose={handleModalClose}
+        confirmText="OK"
+      />
     </KeyboardAvoidingView>
   );
 };
