@@ -10,6 +10,7 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
   const [error, setError] = useState(null);
   const [ingredientGrid, setIngredientGrid] = useState(null);
   const [isGameInitialized, setIsGameInitialized] = useState(false);  // ⭐ Nuevo flag
+  const [gameEnded, setGameEnded] = useState(false);  // 🛡️ Flag para indicar que el juego terminó
   
   const [gameState, setGameState] = useState({
     currentTurn: 1,
@@ -265,6 +266,9 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
       
       console.log('🏁 Evento GAME_ENDED recibido - Partida terminada');
       
+      // 🛡️ Marcar el juego como terminado para evitar alertas adicionales
+      setGameEnded(true);
+      
       // Desactivar reconexión automática
       gameWebSocketService.shouldReconnect = false;
       
@@ -324,11 +328,15 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
       if (didISurrender) {
         // Yo me rendí, simplemente salgo (el modal ya se mostró)
         console.log('✅ Confirmación de mi rendición recibida del servidor');
+        // 🛡️ Marcar el juego como terminado
+        setGameEnded(true);
         return;
       }
       
       // El oponente se rindió - desactivar reconexión
       console.log('🏆 El oponente se rindió - desactivando reconexión');
+      // 🛡️ Marcar el juego como terminado
+      setGameEnded(true);
       gameWebSocketService.shouldReconnect = false;
       
       // Mostrar notificación de victoria
@@ -720,6 +728,12 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
   };
 
   const handleCellPress = (row, col) => {
+    // 🛡️ Si el juego ya terminó, no permitir movimientos
+    if (gameEnded) {
+      console.log('⚠️ Juego terminado - Ignorando clicks en el grid');
+      return;
+    }
+    
     if (gameState.currentTurn !== 1 && gameState.currentTurn !== 2) return;
     
     // ✅ VALIDACIÓN 1: Solo el jugador logueado puede jugar
@@ -847,6 +861,12 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
   };
 
   const handleFinalizeTurn = () => {
+    // 🛡️ Si el juego ya terminó, no hacer nada
+    if (gameEnded) {
+      console.log('⚠️ Juego terminado - Ignorando finalización de turno');
+      return;
+    }
+    
     const currentPlayerNum = gameState.currentTurn;
     const currentPlayerPosition = currentPlayerNum === 1 ? playerPositions.player1 : playerPositions.player2;
     const currentPlayerId = currentPlayerNum === 1 ? roomData?.creatorId : roomData?.opponentId;
@@ -916,6 +936,12 @@ export function useGameLogic(roomCode, userId, roomData = null, navigation = nul
   };
 
   const handleMainButtonPress = () => {
+    // 🛡️ Si el juego ya terminó, no hacer nada
+    if (gameEnded) {
+      console.log('⚠️ Juego terminado - Ignorando interacción con botón principal');
+      return;
+    }
+    
     if (isExchangeMode) {
       if (selectedOrderCards.length === 0) {
         const currentPlayerKey = gameState.currentTurn === 1 ? 'player1' : 'player2';
