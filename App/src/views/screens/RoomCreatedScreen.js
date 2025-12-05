@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ScrollView,
-  Image,
   Modal,
   FlatList,
   ActivityIndicator,
@@ -17,7 +16,7 @@ import {
   ErrorMessage,
   CustomModal,
 } from '../../components/common';
-import { copyRoomCode, navigateToDashboard } from '../../utils';
+import { navigateToDashboard } from '../../utils';
 import { containers, text, buttons, spacing } from '../../styles/common';
 import { useCustomModal } from '../../hooks/useCustomModal';
 import { useAuth } from '../../controllers/AuthContext';
@@ -29,8 +28,6 @@ const RoomCreatedScreen = ({ navigation, route }) => {
   const {
     modalVisible,
     modalData,
-    showSuccessModal,
-    showInfoModal,
     hideModal,
   } = useCustomModal();
 
@@ -242,13 +239,6 @@ const RoomCreatedScreen = ({ navigation, route }) => {
    */
   const goBackToDashboard = () => {
     navigateToDashboard(navigation);
-  };
-
-  /**
-   * Comparte el código de la sala (funcionalidad futura)
-   */
-  const shareRoomCode = () => {
-    showCustomAlert('Compartir', 'Funcionalidad en desarrollo', 'info');
   };
 
   // Si no hay datos de la sala, mostrar error

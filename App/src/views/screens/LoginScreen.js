@@ -11,7 +11,6 @@ import {
 import { useAuth } from '../../controllers/AuthContext';
 import { CustomModal, FormInput, PrimaryButton } from '../../components/common';
 import { useCustomModal } from '../../hooks/useCustomModal';
-import GoogleLogo from '../../components/GoogleLogo';
 import styles from '../../styles/LoginScreen.styles';
 
 // Constantes de configuración

@@ -144,17 +144,10 @@ const GameScreen = ({ navigation, route }) => {
 
   // Cleanup al desmontar el componente
   useEffect(() => {
-    // Ref para rastrear si se usó el botón oficial de salida
-    let didUseExitButton = false;
-    
-    // Cuando se confirma la salida, marcar que se usó el botón oficial
-    const originalConfirmExitGame = confirmExitGame;
-    
     return () => {
-      // Si el componente se desmonta sin usar el botón de salir oficial,
-      // enviar el evento de rendición de todos modos
-      if (!didUseExitButton && gameWebSocketService.isConnected() && user?.id) {
-        console.log('⚠️ Componente desmontado sin usar botón oficial - Enviando PLAYER_SURRENDER');
+      // Si el componente se desmonta, enviar el evento de rendición
+      if (gameWebSocketService.isConnected() && user?.id) {
+        console.log('⚠️ Componente desmontado - Enviando PLAYER_SURRENDER');
         gameWebSocketService.sendPlayerSurrender(user.id);
       }
       
